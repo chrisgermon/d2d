@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  d2d:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./dicom_archive:/app/dicom_archive
+      - ./uploads:/app/uploads
+      - ./destinations.json:/app/destinations.json
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - ARCHIVE_PATH=/app/dicom_archive
+      - UPLOAD_PATH=/app/uploads
+      - MAX_FILE_SIZE=50000000
+    restart: unless-stopped
