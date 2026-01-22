@@ -4,7 +4,7 @@
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    python3 -m venv venv --system-site-packages
 fi
 
 # Activate virtual environment
@@ -26,4 +26,5 @@ fi
 # Run the application
 echo "Starting D2D application..."
 echo "Access at: http://localhost:8000"
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+echo "Press Ctrl+C to stop"
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
