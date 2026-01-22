@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D2D - Documents to DICOM</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📄 Documents to DICOM</h1>
+            <p class="subtitle">Convert documents and images to DICOM format</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Step 1: File Upload -->
+            <section class="card" id="upload-section">
+                <h2>Step 1: Upload File</h2>
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Drag and drop a file here, or click to browse</p>
+                        <p class="file-types">Supported: PDF, JPG, PNG</p>
+                    </div>
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" hidden>
+                </div>
+                <div id="file-info" class="file-info" style="display: none;"></div>
+            </section>
+
+            <!-- Step 2: DICOM Metadata -->
+            <section class="card" id="metadata-section" style="display: none;">
+                <h2>Step 2: DICOM Metadata</h2>
+                <form id="metadata-form" class="metadata-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="patient-name">Patient Name *</label>
+                            <input type="text" id="patient-name" required placeholder="Lastname^Firstname">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-id">Patient ID *</label>
+                            <input type="text" id="patient-id" required placeholder="MRN or Patient ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-dob">Date of Birth</label>
+                            <input type="date" id="patient-dob">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient-sex">Sex</label>
+                            <select id="patient-sex">
+                                <option value="">Select...</option>
+                                <option value="M">Male</option>
+                                <option value="F">Female</option>
+                                <option value="O">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="study-description">Study Description</label>
+                            <input type="text" id="study-description" value="Document Conversion" placeholder="Study Description">
+                        </div>
+                        <div class="form-group">
+                            <label for="series-description">Series Description</label>
+                            <input type="text" id="series-description" value="Imported Document" placeholder="Series Description">
+                        </div>
+                        <div class="form-group">
+                            <label for="accession-number">Accession Number</label>
+                            <input type="text" id="accession-number" placeholder="Accession Number">
+                        </div>
+                        <div class="form-group">
+                            <label for="referring-physician">Referring Physician</label>
+                            <input type="text" id="referring-physician" placeholder="Dr. Smith">
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Step 3: Destination Selection -->
+            <section class="card" id="destination-section" style="display: none;">
+                <div class="section-header">
+                    <h2>Step 3: DICOM Destination</h2>
+                    <button class="btn btn-secondary" id="manage-destinations-btn">Manage Destinations</button>
+                </div>
+                <div id="destinations-list" class="destinations-list"></div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>
+                        <input type="checkbox" id="send-immediately">
+                        Send immediately after conversion
+                    </label>
+                </div>
+            </section>
+
+            <!-- Step 4: Preview & Convert -->
+            <section class="card" id="preview-section" style="display: none;">
+                <h2>Step 4: Preview & Convert</h2>
+                <div id="preview-content" class="preview-content"></div>
+                <div class="button-group">
+                    <button class="btn btn-primary" id="convert-btn">Convert to DICOM</button>
+                    <button class="btn btn-secondary" id="reset-btn">Start Over</button>
+                </div>
+            </section>
+
+            <!-- Results -->
+            <section class="card" id="results-section" style="display: none;">
+                <h2>✓ Conversion Complete</h2>
+                <div id="results-content"></div>
+                <div class="button-group">
+                    <button class="btn btn-primary" id="new-conversion-btn">New Conversion</button>
+                    <button class="btn btn-secondary" id="view-archives-btn">View Archives</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Manage Destinations Modal -->
+    <div id="destinations-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>DICOM Destinations</h2>
+                <button class="modal-close" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="saved-destinations"></div>
+                <hr>
+                <h3>Add New Destination</h3>
+                <form id="destination-form">
+                    <div class="form-group">
+                        <label for="dest-name">Name *</label>
+                        <input type="text" id="dest-name" required placeholder="My PACS">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-ae-title">AE Title *</label>
+                        <input type="text" id="dest-ae-title" required placeholder="PACS_SERVER">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-host">Host *</label>
+                        <input type="text" id="dest-host" required placeholder="192.168.1.100">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-port">Port *</label>
+                        <input type="number" id="dest-port" required value="104" placeholder="104">
+                    </div>
+                    <div class="form-group">
+                        <label for="dest-calling-ae">Calling AE Title</label>
+                        <input type="text" id="dest-calling-ae" value="D2D_SCU" placeholder="D2D_SCU">
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" id="test-connection-btn">Test Connection</button>
+                        <button type="submit" class="btn btn-primary">Save Destination</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Archives Modal -->
+    <div id="archives-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>DICOM Archives</h2>
+                <button class="modal-close" id="close-archives-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="archives-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loading-message">Processing...</p>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
