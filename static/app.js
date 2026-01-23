@@ -4,6 +4,16 @@ let uploadedFileId = null;
 let selectedDestination = null;
 let destinations = [];
 
+// Format date from YYYY-MM-DD to DD/MM/YYYY (Australian format)
+function formatDateToAustralian(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupUploadArea();
@@ -192,12 +202,16 @@ function updatePreview() {
     const metadata = getMetadata();
     const previewContent = document.getElementById('preview-content');
 
+    const displayDob = metadata.patient_birth_date
+        ? formatDateToAustralian(metadata.patient_birth_date)
+        : 'Not set';
+
     previewContent.innerHTML = `
         <h3>DICOM Metadata Preview</h3>
         <dl>
             <dt>Patient Name:</dt><dd>${metadata.patient_name}</dd>
             <dt>Patient ID:</dt><dd>${metadata.patient_id}</dd>
-            <dt>Date of Birth:</dt><dd>${metadata.patient_birth_date || 'Not set'}</dd>
+            <dt>Date of Birth:</dt><dd>${displayDob}</dd>
             <dt>Sex:</dt><dd>${metadata.patient_sex || 'Not set'}</dd>
             <dt>Study Description:</dt><dd>${metadata.study_description}</dd>
             <dt>Series Description:</dt><dd>${metadata.series_description}</dd>
@@ -502,7 +516,14 @@ async function viewArchives() {
             archivesList.innerHTML = '<p style="color: #666;">No archived files</p>';
         } else {
             archivesList.innerHTML = data.archives.map(archive => {
-                const date = new Date(archive.created * 1000).toLocaleString();
+                const date = new Date(archive.created * 1000).toLocaleString('en-AU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
                 return `
                     <div class="archive-item">
                         <div class="archive-info">

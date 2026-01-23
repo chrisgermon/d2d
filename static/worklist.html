@@ -93,21 +93,346 @@
                     <div class="config-grid">
                         <div class="form-group">
                             <label for="wl-host">Host</label>
-                            <input type="text" id="wl-host" value="10.17.1.21">
+                            <input type="text" id="wl-host" value="10.17.1.21" readonly style="background-color: #f5f5f5;">
                         </div>
                         <div class="form-group">
                             <label for="wl-port">Port</label>
-                            <input type="number" id="wl-port" value="5010">
+                            <input type="number" id="wl-port" value="5010" readonly style="background-color: #f5f5f5;">
                         </div>
-                        <div class="form-group">
-                            <label for="wl-ae-title">AE Title</label>
-                            <input type="text" id="wl-ae-title" value="AURVCMOD1">
-                        </div>
-                        <div class="form-group">
-                            <label for="wl-calling-ae">Calling AE</label>
-                            <input type="text" id="wl-calling-ae" value="LIVUSWL">
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label for="wl-ae-title">Worklist Server (AE Title)</label>
+                            <select id="wl-ae-title" style="width: 100%;">
+                                <option value="LIVUSWL">LIVUSWL - Lilydale Ultrasound</option>
+                                <optgroup label="Auburn">
+                                    <option value="AUBCRWL">AUBCRWL - Auburn CR</option>
+                                    <option value="AUBCTWL">AUBCTWL - Auburn CT</option>
+                                    <option value="AUBUSWL">AUBUSWL - Auburn US</option>
+                                </optgroup>
+                                <optgroup label="Botany">
+                                    <option value="BOTCRWL">BOTCRWL - Botany CR</option>
+                                    <option value="BOTCTWL">BOTCTWL - Botany CT</option>
+                                    <option value="BOTUSWL">BOTUSWL - Botany US</option>
+                                </optgroup>
+                                <optgroup label="Bulleen">
+                                    <option value="BULBMDWL">BULBMDWL - Bulleen BMD</option>
+                                    <option value="BULCRWL">BULCRWL - Bulleen CR</option>
+                                    <option value="BULCTWL">BULCTWL - Bulleen CT</option>
+                                    <option value="BULMGWL">BULMGWL - Bulleen MG</option>
+                                    <option value="BULMRWL">BULMRWL - Bulleen MR</option>
+                                    <option value="BULUSWL">BULUSWL - Bulleen US</option>
+                                </optgroup>
+                                <optgroup label="Burwood">
+                                    <option value="BUTCRWL">BUTCRWL - Burwood CR</option>
+                                    <option value="BUTCTWL">BUTCTWL - Burwood CT</option>
+                                    <option value="BUTUSWL">BUTUSWL - Burwood US</option>
+                                </optgroup>
+                                <optgroup label="Carrum Downs">
+                                    <option value="CARCRWL">CARCRWL - Carrum CR</option>
+                                    <option value="CARCTWL">CARCTWL - Carrum CT</option>
+                                    <option value="CARMRWL">CARMRWL - Carrum MR</option>
+                                    <option value="CARUSWL">CARUSWL - Carrum US</option>
+                                </optgroup>
+                                <optgroup label="Cobram">
+                                    <option value="COBBMDWL">COBBMDWL - Cobram BMD</option>
+                                    <option value="COBCRWL">COBCRWL - Cobram CR</option>
+                                    <option value="COBCTWL">COBCTWL - Cobram CT</option>
+                                    <option value="COBUSWL">COBUSWL - Cobram US</option>
+                                </optgroup>
+                                <optgroup label="Coffs Harbour">
+                                    <option value="COEUSWL">COEUSWL - Coffs Harbour US</option>
+                                </optgroup>
+                                <optgroup label="Colac">
+                                    <option value="COLBMDWL">COLBMDWL - Colac BMD</option>
+                                    <option value="COLCRWL">COLCRWL - Colac CR</option>
+                                    <option value="COLCTWL">COLCTWL - Colac CT</option>
+                                    <option value="COLUSWL">COLUSWL - Colac US</option>
+                                </optgroup>
+                                <optgroup label="Coorparoo">
+                                    <option value="COOBMDWL">COOBMDWL - Coorparoo BMD</option>
+                                    <option value="COOCRWL">COOCRWL - Coorparoo CR</option>
+                                    <option value="COOCTWL">COOCTWL - Coorparoo CT</option>
+                                    <option value="COOMRWL">COOMRWL - Coorparoo MR</option>
+                                    <option value="COOUSWL">COOUSWL - Coorparoo US</option>
+                                </optgroup>
+                                <optgroup label="Cremorne">
+                                    <option value="CRECRWL">CRECRWL - Cremorne CR</option>
+                                    <option value="CRECTWL">CRECTWL - Cremorne CT</option>
+                                    <option value="CREUSWL">CREUSWL - Cremorne US</option>
+                                </optgroup>
+                                <optgroup label="Dapre Park">
+                                    <option value="DAPBMDWL">DAPBMDWL - Dapre Park BMD</option>
+                                    <option value="DAPCRWL">DAPCRWL - Dapre Park CR</option>
+                                    <option value="DAPCTWL">DAPCTWL - Dapre Park CT</option>
+                                    <option value="DAPMRWL">DAPMRWL - Dapre Park MR</option>
+                                    <option value="DAPUSWL">DAPUSWL - Dapre Park US</option>
+                                </optgroup>
+                                <optgroup label="Diamond Creek">
+                                    <option value="DIACRWL">DIACRWL - Diamond Creek CR</option>
+                                    <option value="DIACTWL">DIACTWL - Diamond Creek CT</option>
+                                    <option value="DIAUSWL">DIAUSWL - Diamond Creek US</option>
+                                </optgroup>
+                                <optgroup label="Earlwood">
+                                    <option value="EARBMDWL">EARBMDWL - Earlwood BMD</option>
+                                    <option value="EARCRWL">EARCRWL - Earlwood CR</option>
+                                    <option value="EARCTWL">EARCTWL - Earlwood CT</option>
+                                    <option value="EARMGWL">EARMGWL - Earlwood MG</option>
+                                    <option value="EAROPGWL">EAROPGWL - Earlwood OPG</option>
+                                    <option value="EARUSWL">EARUSWL - Earlwood US</option>
+                                </optgroup>
+                                <optgroup label="Eltham">
+                                    <option value="ENEBMDWL">ENEBMDWL - Eltham BMD</option>
+                                    <option value="ENECRWL">ENECRWL - Eltham CR</option>
+                                    <option value="ENECTWL">ENECTWL - Eltham CT</option>
+                                    <option value="ENEUSWL">ENEUSWL - Eltham US</option>
+                                </optgroup>
+                                <optgroup label="Engadine">
+                                    <option value="ENGCRWL">ENGCRWL - Engadine CR</option>
+                                    <option value="ENGCTWL">ENGCTWL - Engadine CT</option>
+                                    <option value="ENGDEWL">ENGDEWL - Engadine DE</option>
+                                    <option value="ENGUSWL">ENGUSWL - Engadine US</option>
+                                </optgroup>
+                                <optgroup label="Grafton">
+                                    <option value="GRACRWL">GRACRWL - Grafton CR</option>
+                                    <option value="GRACTWL">GRACTWL - Grafton CT</option>
+                                    <option value="GRAUSWL">GRAUSWL - Grafton US</option>
+                                </optgroup>
+                                <optgroup label="Greensborough">
+                                    <option value="GRECRWL">GRECRWL - Greensborough CR</option>
+                                    <option value="GRECTWL">GRECTWL - Greensborough CT</option>
+                                    <option value="GREMGWL">GREMGWL - Greensborough MG</option>
+                                    <option value="GREUSWL">GREUSWL - Greensborough US</option>
+                                </optgroup>
+                                <optgroup label="Greenslopes">
+                                    <option value="GRNCRWL">GRNCRWL - Greenslopes CR</option>
+                                    <option value="GRNCTWL">GRNCTWL - Greenslopes CT</option>
+                                    <option value="GRNUSWL">GRNUSWL - Greenslopes US</option>
+                                </optgroup>
+                                <optgroup label="Hamilton">
+                                    <option value="HAMBMDWL">HAMBMDWL - Hamilton BMD</option>
+                                    <option value="HAMCRWL">HAMCRWL - Hamilton CR</option>
+                                    <option value="HAMCTWL">HAMCTWL - Hamilton CT</option>
+                                    <option value="HAMMRWL">HAMMRWL - Hamilton MR</option>
+                                    <option value="HAMUSWL">HAMUSWL - Hamilton US</option>
+                                </optgroup>
+                                <optgroup label="Hawthorn">
+                                    <option value="HAYBMDWL">HAYBMDWL - Hawthorn BMD</option>
+                                    <option value="HAYCRWL">HAYCRWL - Hawthorn CR</option>
+                                    <option value="HAYCTWL">HAYCTWL - Hawthorn CT</option>
+                                    <option value="HAYMRWL">HAYMRWL - Hawthorn MR</option>
+                                    <option value="HAYUSWL">HAYUSWL - Hawthorn US</option>
+                                </optgroup>
+                                <optgroup label="Hyde Park">
+                                    <option value="HPKCRWL">HPKCRWL - Hyde Park CR</option>
+                                    <option value="HPKCTWL">HPKCTWL - Hyde Park CT</option>
+                                    <option value="HPKUSWL">HPKUSWL - Hyde Park US</option>
+                                </optgroup>
+                                <optgroup label="Kangaroo Flat">
+                                    <option value="KANBMDWL">KANBMDWL - Kangaroo Flat BMD</option>
+                                    <option value="KANCRWL">KANCRWL - Kangaroo Flat CR</option>
+                                    <option value="KANCTWL">KANCTWL - Kangaroo Flat CT</option>
+                                    <option value="KANMRWL">KANMRWL - Kangaroo Flat MR</option>
+                                    <option value="KANUSWL">KANUSWL - Kangaroo Flat US</option>
+                                </optgroup>
+                                <optgroup label="Klemzig">
+                                    <option value="KLEBMDWL">KLEBMDWL - Klemzig BMD</option>
+                                    <option value="KLECRWL">KLECRWL - Klemzig CR</option>
+                                    <option value="KLECTWL">KLECTWL - Klemzig CT</option>
+                                    <option value="KLEMRWL">KLEMRWL - Klemzig MR</option>
+                                    <option value="KLEUSWL">KLEUSWL - Klemzig US</option>
+                                </optgroup>
+                                <optgroup label="Kyabram">
+                                    <option value="KYABMDWL">KYABMDWL - Kyabram BMD</option>
+                                    <option value="KYACRWL">KYACRWL - Kyabram CR</option>
+                                    <option value="KYACTWL">KYACTWL - Kyabram CT</option>
+                                    <option value="KYAUSWL">KYAUSWL - Kyabram US</option>
+                                </optgroup>
+                                <optgroup label="Lakes Entrance">
+                                    <option value="LAKCRWL">LAKCRWL - Lakes Entrance CR</option>
+                                    <option value="LAKCTWL">LAKCTWL - Lakes Entrance CT</option>
+                                    <option value="LAKDEWL">LAKDEWL - Lakes Entrance DE</option>
+                                    <option value="LAKUSWL">LAKUSWL - Lakes Entrance US</option>
+                                </optgroup>
+                                <optgroup label="Lilydale">
+                                    <option value="LILBMDWL">LILBMDWL - Lilydale BMD</option>
+                                    <option value="LILCRWL">LILCRWL - Lilydale CR</option>
+                                    <option value="LILCTWL">LILCTWL - Lilydale CT</option>
+                                    <option value="LILMGWL">LILMGWL - Lilydale MG</option>
+                                    <option value="LILMRWL">LILMRWL - Lilydale MR</option>
+                                    <option value="LILUSWL">LILUSWL - Lilydale US</option>
+                                </optgroup>
+                                <optgroup label="Liverpool">
+                                    <option value="LIVCRWL">LIVCRWL - Liverpool CR</option>
+                                    <option value="LIVCTWL">LIVCTWL - Liverpool CT</option>
+                                    <option value="LIVUSWL" selected>LIVUSWL - Liverpool US</option>
+                                </optgroup>
+                                <optgroup label="Logan">
+                                    <option value="LOGCRWL">LOGCRWL - Logan CR</option>
+                                    <option value="LOGCTWL">LOGCTWL - Logan CT</option>
+                                    <option value="LOGMGWL">LOGMGWL - Logan MG</option>
+                                    <option value="LOGUSWL">LOGUSWL - Logan US</option>
+                                </optgroup>
+                                <optgroup label="Lynbrook">
+                                    <option value="LYNBMDWL">LYNBMDWL - Lynbrook BMD</option>
+                                    <option value="LYNCRWL">LYNCRWL - Lynbrook CR</option>
+                                    <option value="LYNCTWL">LYNCTWL - Lynbrook CT</option>
+                                    <option value="LYNUSWL">LYNUSWL - Lynbrook US</option>
+                                </optgroup>
+                                <optgroup label="Maroondah">
+                                    <option value="MARBMDWL">MARBMDWL - Maroondah BMD</option>
+                                    <option value="MARCRWL">MARCRWL - Maroondah CR</option>
+                                    <option value="MARCTWL">MARCTWL - Maroondah CT</option>
+                                    <option value="MARUSWL">MARUSWL - Maroondah US</option>
+                                </optgroup>
+                                <optgroup label="Menzies">
+                                    <option value="MENBMDWL">MENBMDWL - Menzies BMD</option>
+                                    <option value="MENCRWL">MENCRWL - Menzies CR</option>
+                                    <option value="MENCTWL">MENCTWL - Menzies CT</option>
+                                    <option value="MENMGWL">MENMGWL - Menzies MG</option>
+                                    <option value="MENMRWL">MENMRWL - Menzies MR</option>
+                                    <option value="MENUSWL">MENUSWL - Menzies US</option>
+                                </optgroup>
+                                <optgroup label="Mordialloc">
+                                    <option value="MORBMDWL">MORBMDWL - Mordialloc BMD</option>
+                                    <option value="MORCRWL">MORCRWL - Mordialloc CR</option>
+                                    <option value="MORCTWL">MORCTWL - Mordialloc CT</option>
+                                    <option value="MORMRWL">MORMRWL - Mordialloc MR</option>
+                                    <option value="MORUSWL">MORUSWL - Mordialloc US</option>
+                                </optgroup>
+                                <optgroup label="Moruya">
+                                    <option value="MOVCRWL">MOVCRWL - Moruya CR</option>
+                                    <option value="MOVCTWL">MOVCTWL - Moruya CT</option>
+                                    <option value="MOVMRWL">MOVMRWL - Moruya MR</option>
+                                    <option value="MOVUSWL">MOVUSWL - Moruya US</option>
+                                </optgroup>
+                                <optgroup label="Mulgrave">
+                                    <option value="MULBMDWL">MULBMDWL - Mulgrave BMD</option>
+                                    <option value="MULCRWL">MULCRWL - Mulgrave CR</option>
+                                    <option value="MULCTWL">MULCTWL - Mulgrave CT</option>
+                                    <option value="MULMRWL">MULMRWL - Mulgrave MR</option>
+                                    <option value="MULUSWL">MULUSWL - Mulgrave US</option>
+                                </optgroup>
+                                <optgroup label="Narooma">
+                                    <option value="NAEUSWL">NAEUSWL - Narooma US</option>
+                                </optgroup>
+                                <optgroup label="Nambour">
+                                    <option value="NAMBMDWL">NAMBMDWL - Nambour BMD</option>
+                                    <option value="NAMCRWL">NAMCRWL - Nambour CR</option>
+                                    <option value="NAMCTWL">NAMCTWL - Nambour CT</option>
+                                    <option value="NAMUSWL">NAMUSWL - Nambour US</option>
+                                </optgroup>
+                                <optgroup label="Nambucca">
+                                    <option value="NOEUSWL">NOEUSWL - Nambucca US</option>
+                                </optgroup>
+                                <optgroup label="Noonamah">
+                                    <option value="NOOBMDWL">NOOBMDWL - Noonamah BMD</option>
+                                    <option value="NOOCRWL">NOOCRWL - Noonamah CR</option>
+                                    <option value="NOOCTWL">NOOCTWL - Noonamah CT</option>
+                                    <option value="NOOUSWL">NOOUSWL - Noonamah US</option>
+                                </optgroup>
+                                <optgroup label="Norseman">
+                                    <option value="NORCRWL">NORCRWL - Norseman CR</option>
+                                    <option value="NORCTWL">NORCTWL - Norseman CT</option>
+                                    <option value="NOREOSWL">NOREOSWL - Norseman EOS</option>
+                                    <option value="NORUSWL">NORUSWL - Norseman US</option>
+                                </optgroup>
+                                <optgroup label="O'Neill">
+                                    <option value="ONEUSWL">ONEUSWL - O'Neill US</option>
+                                </optgroup>
+                                <optgroup label="Reservoir">
+                                    <option value="RESCRWL">RESCRWL - Reservoir CR</option>
+                                    <option value="RESCTWL">RESCTWL - Reservoir CT</option>
+                                    <option value="RESMGWL">RESMGWL - Reservoir MG</option>
+                                    <option value="RESMRWL">RESMRWL - Reservoir MR</option>
+                                    <option value="RESUSWL">RESUSWL - Reservoir US</option>
+                                </optgroup>
+                                <optgroup label="Ringwood">
+                                    <option value="RINBMDWL">RINBMDWL - Ringwood BMD</option>
+                                    <option value="RINCRWL">RINCRWL - Ringwood CR</option>
+                                    <option value="RINCTWL">RINCTWL - Ringwood CT</option>
+                                    <option value="RINUSWL">RINUSWL - Ringwood US</option>
+                                </optgroup>
+                                <optgroup label="Rockhampton">
+                                    <option value="ROCCRWL">ROCCRWL - Rockhampton CR</option>
+                                    <option value="ROCCTWL">ROCCTWL - Rockhampton CT</option>
+                                    <option value="ROCUSWL">ROCUSWL - Rockhampton US</option>
+                                </optgroup>
+                                <optgroup label="Sebastopol">
+                                    <option value="SEBBMDWL">SEBBMDWL - Sebastopol BMD</option>
+                                    <option value="SEBCRWL">SEBCRWL - Sebastopol CR</option>
+                                    <option value="SEBCTWL">SEBCTWL - Sebastopol CT</option>
+                                    <option value="SEBMRWL">SEBMRWL - Sebastopol MR</option>
+                                    <option value="SEBUSWL">SEBUSWL - Sebastopol US</option>
+                                </optgroup>
+                                <optgroup label="Shepparton">
+                                    <option value="SHEBMDWL">SHEBMDWL - Shepparton BMD</option>
+                                    <option value="SHECRWL">SHECRWL - Shepparton CR</option>
+                                    <option value="SHECTWL">SHECTWL - Shepparton CT</option>
+                                    <option value="SHEMRWL">SHEMRWL - Shepparton MR</option>
+                                    <option value="SHEUSWL">SHEUSWL - Shepparton US</option>
+                                </optgroup>
+                                <optgroup label="Tee Off">
+                                    <option value="TEEUSWL">TEEUSWL - Tee Off US</option>
+                                </optgroup>
+                                <optgroup label="Tewantin">
+                                    <option value="TEWBMDWL">TEWBMDWL - Tewantin BMD</option>
+                                    <option value="TEWCRWL">TEWCRWL - Tewantin CR</option>
+                                    <option value="TEWCTWL">TEWCTWL - Tewantin CT</option>
+                                    <option value="TEWUSWL">TEWUSWL - Tewantin US</option>
+                                </optgroup>
+                                <optgroup label="Thornbury">
+                                    <option value="THRBMDWL">THRBMDWL - Thornbury BMD</option>
+                                    <option value="THRCRWL">THRCRWL - Thornbury CR</option>
+                                    <option value="THRCTWL">THRCTWL - Thornbury CT</option>
+                                    <option value="THRUSWL">THRUSWL - Thornbury US</option>
+                                </optgroup>
+                                <optgroup label="Toormina">
+                                    <option value="TORBMDWL">TORBMDWL - Toormina BMD</option>
+                                    <option value="TORCRWL">TORCRWL - Toormina CR</option>
+                                    <option value="TORCTWL">TORCTWL - Toormina CT</option>
+                                    <option value="TORMRWL">TORMRWL - Toormina MR</option>
+                                    <option value="TORUSWL">TORUSWL - Toormina US</option>
+                                </optgroup>
+                                <optgroup label="Unlisted">
+                                    <option value="UNLBMDWL">UNLBMDWL - Unlisted BMD</option>
+                                    <option value="UNLCRWL">UNLCRWL - Unlisted CR</option>
+                                    <option value="UNLCTWL">UNLCTWL - Unlisted CT</option>
+                                    <option value="UNLUSWL">UNLUSWL - Unlisted US</option>
+                                </optgroup>
+                                <optgroup label="Warragul">
+                                    <option value="WARCRWL">WARCRWL - Warragul CR</option>
+                                    <option value="WARCTWL">WARCTWL - Warragul CT</option>
+                                    <option value="WARUSWL">WARUSWL - Warragul US</option>
+                                </optgroup>
+                                <optgroup label="Werribee">
+                                    <option value="WERBMDWL">WERBMDWL - Werribee BMD</option>
+                                    <option value="WERCRWL">WERCRWL - Werribee CR</option>
+                                    <option value="WERCTWL">WERCTWL - Werribee CT</option>
+                                    <option value="WERMRWL">WERMRWL - Werribee MR</option>
+                                    <option value="WERUSWL">WERUSWL - Werribee US</option>
+                                </optgroup>
+                                <optgroup label="Williams Landing">
+                                    <option value="WILBMDWL">WILBMDWL - Williams Landing BMD</option>
+                                    <option value="WILCRWL">WILCRWL - Williams Landing CR</option>
+                                    <option value="WILCTWL">WILCTWL - Williams Landing CT</option>
+                                    <option value="WILMRWL">WILMRWL - Williams Landing MR</option>
+                                    <option value="WILUSWL">WILUSWL - Williams Landing US</option>
+                                </optgroup>
+                                <optgroup label="Wodonga">
+                                    <option value="WOOCRWL">WOOCRWL - Wodonga CR</option>
+                                    <option value="WOOCTWL">WOOCTWL - Wodonga CT</option>
+                                    <option value="WOOUSWL">WOOUSWL - Wodonga US</option>
+                                </optgroup>
+                                <optgroup label="Warrnambool">
+                                    <option value="WRRCRWL">WRRCRWL - Warrnambool CR</option>
+                                    <option value="WRRCTWL">WRRCTWL - Warrnambool CT</option>
+                                    <option value="WRRUSWL">WRRUSWL - Warrnambool US</option>
+                                </optgroup>
+                            </select>
                         </div>
                     </div>
+                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                        💡 Select the worklist server for the specific site and modality you want to query
+                    </p>
                     <button class="btn btn-secondary" onclick="testWorklistConnection()" style="margin-top: 10px;">
                         Test Connection
                     </button>
@@ -182,6 +507,55 @@
 
     <script>
         let selectedWorklistItem = null;
+
+        // Format DICOM date (YYYYMMDD or YYYY-MM-DD) to Australian format (DD/MM/YYYY)
+        function formatDate(dicomDate) {
+            if (!dicomDate) return '';
+
+            // Handle YYYYMMDD format
+            if (dicomDate.length === 8) {
+                const year = dicomDate.substring(0, 4);
+                const month = dicomDate.substring(4, 6);
+                const day = dicomDate.substring(6, 8);
+                return `${day}/${month}/${year}`;
+            }
+
+            // Handle YYYY-MM-DD format
+            if (dicomDate.includes('-')) {
+                const parts = dicomDate.split('-');
+                if (parts.length === 3) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+
+            return dicomDate;
+        }
+
+        // Format DICOM time (HHMMSS or HH:MM:SS) to 12-hour format
+        function formatTime(dicomTime) {
+            if (!dicomTime) return '';
+
+            let hours, minutes;
+
+            // Handle HHMMSS format
+            if (dicomTime.length === 6) {
+                hours = parseInt(dicomTime.substring(0, 2));
+                minutes = dicomTime.substring(2, 4);
+            }
+            // Handle HH:MM:SS format
+            else if (dicomTime.includes(':')) {
+                const parts = dicomTime.split(':');
+                hours = parseInt(parts[0]);
+                minutes = parts[1];
+            } else {
+                return dicomTime;
+            }
+
+            const period = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+
+            return `${hours}:${minutes} ${period}`;
+        }
 
         async function testWorklistConnection() {
             const config = getWorklistConfig();
@@ -278,14 +652,19 @@
             `;
 
             items.forEach((item, index) => {
+                const dob = formatDate(item.patient_birth_date);
+                const schedDate = formatDate(item.scheduled_date);
+                const schedTime = formatTime(item.scheduled_time);
+                const scheduledDateTime = schedDate + (schedTime ? ' ' + schedTime : '');
+
                 tableHTML += `
                     <tr onclick="selectWorklistItem(${index})">
                         <td>${item.patient_name || ''}</td>
                         <td>${item.patient_id || ''}</td>
-                        <td>${item.patient_birth_date || ''}</td>
+                        <td>${dob}</td>
                         <td>${item.accession_number || ''}</td>
                         <td>${item.modality || ''}</td>
-                        <td>${item.scheduled_date || ''} ${item.scheduled_time || ''}</td>
+                        <td>${scheduledDateTime}</td>
                         <td>${item.procedure_description || item.requested_procedure_description || ''}</td>
                     </tr>
                 `;
@@ -318,15 +697,20 @@
             const selectedSection = document.getElementById('selected-section');
             const selectedInfo = document.getElementById('selected-info');
 
+            const dob = formatDate(item.patient_birth_date) || 'N/A';
+            const schedDate = formatDate(item.scheduled_date);
+            const schedTime = formatTime(item.scheduled_time);
+            const scheduledDateTime = schedDate ? schedDate + (schedTime ? ' ' + schedTime : '') : 'N/A';
+
             selectedInfo.innerHTML = `
                 <h3>${item.patient_name}</h3>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
                     <div><strong>Patient ID:</strong> ${item.patient_id || 'N/A'}</div>
-                    <div><strong>Date of Birth:</strong> ${item.patient_birth_date || 'N/A'}</div>
+                    <div><strong>Date of Birth:</strong> ${dob}</div>
                     <div><strong>Sex:</strong> ${item.patient_sex || 'N/A'}</div>
                     <div><strong>Accession:</strong> ${item.accession_number || 'N/A'}</div>
                     <div><strong>Modality:</strong> ${item.modality || 'N/A'}</div>
-                    <div><strong>Scheduled:</strong> ${item.scheduled_date || ''} ${item.scheduled_time || ''}</div>
+                    <div><strong>Scheduled:</strong> ${scheduledDateTime}</div>
                     <div style="grid-column: 1 / -1;"><strong>Procedure:</strong> ${item.procedure_description || item.requested_procedure_description || 'N/A'}</div>
                     <div style="grid-column: 1 / -1;"><strong>Physician:</strong> ${item.scheduled_physician || 'N/A'}</div>
                 </div>
