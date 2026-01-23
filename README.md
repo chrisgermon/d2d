@@ -1,16 +1,35 @@
 # Documents to DICOM (D2D)
 
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![DICOM](https://img.shields.io/badge/DICOM-Standard-red.svg)](https://www.dicomstandard.org/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![Azure](https://img.shields.io/badge/Azure-Deployed-0078D4.svg)](https://azure.microsoft.com/)
+[![Status](https://img.shields.io/badge/status-production-success.svg)]()
+
 Convert documents and images to DICOM format and send to PACS systems.
 
 ## Features
 
 - 📄 **Multi-format Support**: Convert PDF, JPG, and PNG files to DICOM
+- 🏥 **Modality Worklist Integration**: Query scheduled studies (C-FIND) and auto-populate patient data
 - ✏️ **DICOM Metadata Editor**: Complete control over patient demographics and study information
 - 🚀 **DICOM Send**: C-STORE to any DICOM destination (PACS, VNA, etc.)
 - 💾 **Archive Management**: All converted DICOM files are stored locally
 - 🎯 **Destination Management**: Save and manage multiple DICOM destinations
 - 🔍 **Preview Before Send**: Review all metadata before conversion
 - 🎨 **Modern UI**: Clean, intuitive drag-and-drop interface
+
+## New: Modality Worklist Support
+
+Query your RIS/PACS worklist server to find scheduled studies and automatically populate patient demographics:
+
+- **Query worklist** by patient name, ID, accession number, date, or modality
+- **Select patient** from results table
+- **Auto-populate** all DICOM metadata fields (patient info, accession, study details)
+- **Seamless workflow** - no manual data entry required
+
+See [WORKLIST-FEATURE.md](WORKLIST-FEATURE.md) for complete documentation.
 
 ## Requirements
 
