@@ -1,12 +1,15 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Header, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 import shutil
 import json
 from pathlib import Path
 from typing import Optional
 import uuid
+import os
+import secrets
 
 from app.config import settings
 from app.models import (
@@ -35,6 +38,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Key Authentication
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+# Load API keys from environment or use default (CHANGE IN PRODUCTION!)
+VALID_API_KEYS = os.getenv("D2D_API_KEYS", "vrg-api-key-2026-secure-change-me").split(",")
+
+async def verify_api_key(api_key: str = Depends(api_key_header)) -> str:
+    """Verify API key for protected endpoints"""
+    if api_key is None or api_key not in VALID_API_KEYS:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key. Include 'X-API-Key' header.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    return api_key
 
 # Initialize services
 converter = DicomConverter()
@@ -111,7 +131,7 @@ async def network_info():
     return info
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), api_key: str = Depends(verify_api_key)):
     """Upload a document or image file"""
     # Check file size
     file_content = await file.read()
@@ -156,7 +176,7 @@ async def upload_file(file: UploadFile = File(...)):
     }
 
 @app.post("/api/convert", response_model=ConversionResponse)
-async def convert_to_dicom(request: ConversionRequest):
+async def convert_to_dicom(request: ConversionRequest, api_key: str = Depends(verify_api_key)):
     """Convert uploaded file to DICOM"""
     # Get uploaded file
     if request.file_id not in uploaded_files:
@@ -210,7 +230,8 @@ async def convert_to_dicom(request: ConversionRequest):
 @app.post("/api/send")
 async def send_dicom_file(
     dicom_file_path: str = Form(...),
-    destination: str = Form(...)
+    destination: str = Form(...),
+    api_key: str = Depends(verify_api_key)
 ):
     """Send an existing DICOM file to a destination"""
     try:
@@ -226,13 +247,13 @@ async def send_dicom_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/destinations")
-async def get_destinations():
+async def get_destinations(api_key: str = Depends(verify_api_key)):
     """Get all saved DICOM destinations"""
     destinations = json.loads(destinations_file.read_text())
     return {"destinations": destinations}
 
 @app.post("/api/destinations")
-async def save_destination(destination: DicomDestination):
+async def save_destination(destination: DicomDestination, api_key: str = Depends(verify_api_key)):
     """Save a new DICOM destination"""
     destinations = json.loads(destinations_file.read_text())
     destinations.append(destination.model_dump())
@@ -240,7 +261,7 @@ async def save_destination(destination: DicomDestination):
     return {"success": True, "message": "Destination saved"}
 
 @app.delete("/api/destinations/{destination_name}")
-async def delete_destination(destination_name: str):
+async def delete_destination(destination_name: str, api_key: str = Depends(verify_api_key)):
     """Delete a DICOM destination"""
     destinations = json.loads(destinations_file.read_text())
     destinations = [d for d in destinations if d["name"] != destination_name]
@@ -248,7 +269,7 @@ async def delete_destination(destination_name: str):
     return {"success": True, "message": "Destination deleted"}
 
 @app.post("/api/destinations/verify")
-async def verify_destination(destination: DicomDestination):
+async def verify_destination(destination: DicomDestination, api_key: str = Depends(verify_api_key)):
     """Verify connection to a DICOM destination"""
     success, message = sender.verify_destination(destination)
     if success:
@@ -257,7 +278,7 @@ async def verify_destination(destination: DicomDestination):
         raise HTTPException(status_code=500, detail=message)
 
 @app.get("/api/archives")
-async def list_archives():
+async def list_archives(api_key: str = Depends(verify_api_key)):
     """List all archived DICOM files"""
     archives = []
     for file in settings.archive_path.glob("*.dcm"):
@@ -270,7 +291,7 @@ async def list_archives():
     return {"archives": sorted(archives, key=lambda x: x["created"], reverse=True)}
 
 @app.get("/api/archives/{filename}")
-async def download_archive(filename: str):
+async def download_archive(filename: str, api_key: str = Depends(verify_api_key)):
     """Download an archived DICOM file"""
     file_path = settings.archive_path / filename
     if not file_path.exists():
@@ -355,7 +376,7 @@ async def test_connectivity(host: str = Form(...), port: int = Form(...)):
     return {"results": results, "target": f"{host}:{port}"}
 
 @app.post("/api/worklist/query")
-async def query_worklist(request: WorklistQueryRequest):
+async def query_worklist(request: WorklistQueryRequest, api_key: str = Depends(verify_api_key)):
     """Query the modality worklist for scheduled studies"""
     try:
         config = request.config or WorklistConfig()
@@ -389,7 +410,7 @@ async def query_worklist(request: WorklistQueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/worklist/test")
-async def test_worklist_connection(config: WorklistConfig):
+async def test_worklist_connection(config: WorklistConfig, api_key: str = Depends(verify_api_key)):
     """Test connection to worklist server"""
     try:
         worklist = WorklistQuery(
@@ -410,7 +431,7 @@ async def test_worklist_connection(config: WorklistConfig):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/worklist/config")
-async def get_worklist_config():
+async def get_worklist_config(api_key: str = Depends(verify_api_key)):
     """Get default worklist configuration"""
     return WorklistConfig().model_dump()
 
