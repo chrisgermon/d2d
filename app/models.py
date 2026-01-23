@@ -39,3 +39,19 @@ class ConversionResponse(BaseModel):
     sop_instance_uid: Optional[str] = None
     study_instance_uid: Optional[str] = None
     series_instance_uid: Optional[str] = None
+
+class WorklistConfig(BaseModel):
+    """Worklist server configuration"""
+    host: str = Field(default="10.17.1.21", description="Worklist server IP")
+    port: int = Field(default=5010, description="Worklist server port")
+    ae_title: str = Field(default="AURVCMOD1", description="Worklist server AE Title")
+    calling_ae: str = Field(default="LIVUSWL", description="Our AE Title for worklist queries")
+
+class WorklistQueryRequest(BaseModel):
+    """Request to query modality worklist"""
+    patient_name: Optional[str] = None
+    patient_id: Optional[str] = None
+    accession_number: Optional[str] = None
+    scheduled_date: Optional[date] = None
+    modality: Optional[str] = None
+    config: Optional[WorklistConfig] = WorklistConfig()

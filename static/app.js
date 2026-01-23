@@ -11,7 +11,93 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDestinations();
     setupButtons();
     loadDestinations();
+    checkWorklistData();
 });
+
+// Check for worklist data from sessionStorage
+function checkWorklistData() {
+    const worklistItem = sessionStorage.getItem('worklistItem');
+    if (worklistItem) {
+        try {
+            const item = JSON.parse(worklistItem);
+            populateFromWorklist(item);
+            sessionStorage.removeItem('worklistItem'); // Clear after use
+
+            // Show notification
+            showNotification('Patient data loaded from worklist: ' + item.patient_name);
+        } catch (e) {
+            console.error('Error loading worklist data:', e);
+        }
+    }
+}
+
+function populateFromWorklist(item) {
+    // Show metadata section
+    document.getElementById('metadata-section').style.display = 'block';
+
+    // Populate patient information
+    if (item.patient_name) {
+        document.getElementById('patient-name').value = item.patient_name;
+    }
+    if (item.patient_id) {
+        document.getElementById('patient-id').value = item.patient_id;
+    }
+    if (item.patient_birth_date) {
+        document.getElementById('patient-dob').value = item.patient_birth_date;
+    }
+    if (item.patient_sex) {
+        document.getElementById('patient-sex').value = item.patient_sex;
+    }
+
+    // Populate study information
+    if (item.accession_number) {
+        document.getElementById('accession-number').value = item.accession_number;
+    }
+    if (item.procedure_description || item.requested_procedure_description) {
+        document.getElementById('study-description').value =
+            item.procedure_description || item.requested_procedure_description;
+    }
+    if (item.modality) {
+        document.getElementById('modality').value = item.modality;
+    }
+    if (item.scheduled_physician) {
+        document.getElementById('referring-physician').value = item.scheduled_physician;
+    }
+
+    // Set study date/time if scheduled
+    if (item.scheduled_date) {
+        document.getElementById('study-date').value = item.scheduled_date;
+    }
+    if (item.scheduled_time) {
+        document.getElementById('study-time').value = item.scheduled_time;
+    }
+}
+
+function showNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 1000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    // Remove after 5 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
 
 // File Upload
 function setupUploadArea() {

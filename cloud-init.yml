@@ -1,0 +1,39 @@
+#cloud-config
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose
+  - python3-pip
+  - curl
+  - git
+
+write_files:
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+
+runcmd:
+  # Start and enable Docker
+  - systemctl start docker
+  - systemctl enable docker
+
+  # Add default user to docker group
+  - usermod -aG docker azureuser
+
+  # Create directory for d2d
+  - mkdir -p /opt/d2d
+  - chown azureuser:azureuser /opt/d2d
+
+  # Clone d2d repository (we'll copy files after VM is created)
+  - echo "VM setup complete - ready for d2d deployment" > /opt/d2d/setup-status.txt
+
+  # Set hostname
+  - hostnamectl set-hostname d2d-vm
+
+final_message: "D2D VM setup complete after $UPTIME seconds"

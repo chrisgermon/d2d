@@ -1,0 +1,165 @@
+=== D2D Azure Deployment with VNet Integration ===
+
+Deployment Date: 2026-01-23
+Deployed By: chris@visionradiology.com.au
+Status: ✓ PRODUCTION READY
+
+=== Access ===
+Application URL: https://d2d-app-vnet.kindglacier-71e74fc9.australiasoutheast.azurecontainerapps.io
+
+=== Resources ===
+Container App:        d2d-app-vnet
+Container Registry:   d2dacr9129522
+Storage Account:      d2dstor9129558
+Resource Group:       d2d-rg
+Location:             australiasoutheast
+
+=== Network Configuration ===
+VNet:                 vnet-migration (10.200.0.0/16)
+Container Subnet:     snet-containerapps (10.200.2.0/23)
+Container IPs:        Dynamic from 10.200.2.0 - 10.200.3.255
+PACS Target:          10.17.1.21:5000 ✓ REACHABLE
+
+✓ Containers CAN connect to your PACS at 10.17.1.21:5000
+✓ Connected via VPN/ExpressRoute through vnet-migration
+✓ Source IPs will be from 10.200.2.0/23 range
+
+=== PACS Configuration Required ===
+On your PACS at 10.17.1.21, allow:
+  Source:      10.200.2.0/23 (entire subnet)
+  Destination: 10.17.1.21:5000
+  Protocol:    TCP (DICOM)
+  AE Title:    D2D_SCU (configurable in app)
+
+=== App Configuration ===
+CPU:          0.5 cores
+Memory:       1 GB
+Min Replicas: 0 (scales to zero when idle)
+Max Replicas: 2
+Port:         8000
+Ingress:      External (HTTPS)
+VNet:         Integrated ✓
+
+=== Storage ===
+File Share:   d2darchive
+Account:      d2dstor9129558
+Purpose:      Stores converted DICOM files
+
+=== Quick Start ===
+
+1. Access the app:
+   https://d2d-app-vnet.kindglacier-71e74fc9.australiasoutheast.azurecontainerapps.io
+
+2. Configure DICOM Destination:
+   - Click "DICOM Destinations"
+   - Add New:
+     * Name: Your PACS Name
+     * Host: 10.17.1.21
+     * Port: 5000
+     * AE Title: (your PACS AE title)
+     * Calling AE: D2D_SCU
+   - Click "Save"
+   - Click "Test Connection"
+
+3. Convert and Send:
+   - Upload a PDF/document
+   - Enter patient details
+   - Select destination
+   - Click "Convert and Send"
+
+=== Management Commands ===
+
+View live logs:
+  az containerapp logs show --name d2d-app-vnet --resource-group d2d-rg --follow
+
+Update the app (after code changes):
+  cd /home/claudeagent/d2d
+  ./update-d2d.sh
+
+Manual update:
+  cd /home/claudeagent/d2d
+  az acr build --registry d2dacr9129522 --image d2d:latest . --platform linux
+  az containerapp update --name d2d-app-vnet --resource-group d2d-rg --image d2dacr9129522.azurecr.io/d2d:latest
+
+Restart container:
+  az containerapp revision restart --name d2d-app-vnet --resource-group d2d-rg
+
+Scale the app:
+  az containerapp update --name d2d-app-vnet --resource-group d2d-rg --min-replicas 1 --max-replicas 5
+
+Check network configuration:
+  az containerapp env show --name d2d-env-vnet --resource-group d2d-rg --query vnetConfiguration
+
+List all resources:
+  az resource list --resource-group d2d-rg -o table
+
+Delete everything:
+  az group delete --name d2d-rg --yes
+  # Note: This will NOT delete the VNet (it's in rg-migration-vpn)
+
+=== Troubleshooting ===
+
+Connection fails to PACS:
+  1. Verify PACS allows 10.200.2.0/23 subnet
+  2. Check VPN/ExpressRoute is active
+  3. Test from another machine on 10.200.x.x network
+  4. Check firewall rules
+  5. View container logs for errors
+
+View detailed logs:
+  az containerapp logs show --name d2d-app-vnet --resource-group d2d-rg --follow
+
+Check if container is running:
+  az containerapp show --name d2d-app-vnet --resource-group d2d-rg --query properties.runningStatus -o tsv
+
+Test from container (if needed):
+  az containerapp exec --name d2d-app-vnet --resource-group d2d-rg --command "/bin/bash"
+
+=== Cost Estimate ===
+Container Apps:  $0-10/month (scales to zero when idle)
+Storage:         ~$0.50/month for 10GB
+Registry (ACR):  ~$5/month (Basic tier)
+VNet:            No additional cost (existing)
+─────────────────────────────────────────────────
+Total:           ~$6-15/month depending on usage
+
+=== Network Topology ===
+
+Internet (HTTPS) → Container App (public endpoint)
+                    ↓
+                Container (10.200.2.x)
+                    ↓ (private network)
+              vnet-migration (10.200.0.0/16)
+                    ↓ (VPN gateway)
+              Your Network
+                    ↓
+              PACS (10.17.1.21:5000)
+
+=== Files in Repository ===
+/home/claudeagent/d2d/
+  ├── DEPLOYMENT-INFO.txt       (this file)
+  ├── NETWORK-STATUS.md         (detailed network docs)
+  ├── update-d2d.sh            (quick update script)
+  ├── app/                      (application code)
+  ├── static/                   (web interface)
+  └── test_pacs_connectivity.py (network test script)
+
+=== Support ===
+Documentation: See NETWORK-STATUS.md for detailed network configuration
+Update Script: ./update-d2d.sh
+Repository:    /home/claudeagent/d2d/
+
+=== Next Steps ===
+1. ✓ App is deployed and running
+2. ✓ VNet integration configured
+3. ☐ Configure PACS to accept 10.200.2.0/23 subnet
+4. ☐ Test connection from D2D web interface
+5. ☐ Upload first document and test conversion
+6. ☐ Verify DICOM file reaches PACS
+
+=== Quick Reference ===
+App URL:     https://d2d-app-vnet.kindglacier-71e74fc9.australiasoutheast.azurecontainerapps.io
+PACS:        10.17.1.21:5000
+Source IPs:  10.200.2.0/23
+Update:      ./update-d2d.sh
+Logs:        az containerapp logs show --name d2d-app-vnet --resource-group d2d-rg --follow

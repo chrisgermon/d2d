@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modality Worklist - D2D</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .worklist-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .worklist-table th,
+        .worklist-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .worklist-table th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+        .worklist-table tr:hover {
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        .worklist-table tr.selected {
+            background-color: #e3f2fd;
+        }
+        .query-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .selected-patient-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .config-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🏥 Modality Worklist Query</h1>
+            <p class="subtitle">Query scheduled studies and select patient</p>
+            <a href="/" style="color: #007bff;">← Back to D2D</a>
+        </header>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Worklist Configuration -->
+            <section class="card">
+                <h2>Worklist Server Configuration</h2>
+                <div class="config-section">
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="wl-host">Host</label>
+                            <input type="text" id="wl-host" value="10.17.1.21">
+                        </div>
+                        <div class="form-group">
+                            <label for="wl-port">Port</label>
+                            <input type="number" id="wl-port" value="5010">
+                        </div>
+                        <div class="form-group">
+                            <label for="wl-ae-title">AE Title</label>
+                            <input type="text" id="wl-ae-title" value="AURVCMOD1">
+                        </div>
+                        <div class="form-group">
+                            <label for="wl-calling-ae">Calling AE</label>
+                            <input type="text" id="wl-calling-ae" value="LIVUSWL">
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="testWorklistConnection()" style="margin-top: 10px;">
+                        Test Connection
+                    </button>
+                </div>
+            </section>
+
+            <!-- Query Filters -->
+            <section class="card">
+                <h2>Search Filters</h2>
+                <div class="query-filters">
+                    <div class="form-group">
+                        <label for="search-patient-name">Patient Name</label>
+                        <input type="text" id="search-patient-name" placeholder="Last^First or use * for all">
+                    </div>
+                    <div class="form-group">
+                        <label for="search-patient-id">Patient ID</label>
+                        <input type="text" id="search-patient-id" placeholder="MRN">
+                    </div>
+                    <div class="form-group">
+                        <label for="search-accession">Accession Number</label>
+                        <input type="text" id="search-accession" placeholder="Accession">
+                    </div>
+                    <div class="form-group">
+                        <label for="search-date">Scheduled Date</label>
+                        <input type="date" id="search-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="search-modality">Modality</label>
+                        <select id="search-modality">
+                            <option value="">All</option>
+                            <option value="US">US - Ultrasound</option>
+                            <option value="CT">CT - Computed Tomography</option>
+                            <option value="MR">MR - Magnetic Resonance</option>
+                            <option value="XA">XA - X-Ray Angiography</option>
+                            <option value="CR">CR - Computed Radiography</option>
+                            <option value="DX">DX - Digital Radiography</option>
+                            <option value="MG">MG - Mammography</option>
+                            <option value="OT">OT - Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="queryWorklist()">
+                        🔍 Search Worklist
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">
+                        Clear Filters
+                    </button>
+                </div>
+            </section>
+
+            <!-- Results Table -->
+            <section class="card">
+                <h2>Worklist Results</h2>
+                <div id="results-container">
+                    <div class="no-results">
+                        Click "Search Worklist" to query scheduled studies
+                    </div>
+                </div>
+            </section>
+
+            <!-- Selected Patient Info -->
+            <section class="card" id="selected-section" style="display: none;">
+                <h2>Selected Patient</h2>
+                <div id="selected-info" class="selected-patient-info"></div>
+                <button class="btn btn-primary" onclick="useSelectedPatient()" style="margin-top: 15px;">
+                    Use This Patient in D2D
+                </button>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        let selectedWorklistItem = null;
+
+        async function testWorklistConnection() {
+            const config = getWorklistConfig();
+
+            try {
+                const response = await fetch('/api/worklist/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('✓ ' + result.message);
+                } else {
+                    alert('✗ Connection failed: ' + result.detail);
+                }
+            } catch (error) {
+                alert('✗ Error: ' + error.message);
+            }
+        }
+
+        function getWorklistConfig() {
+            return {
+                host: document.getElementById('wl-host').value,
+                port: parseInt(document.getElementById('wl-port').value),
+                ae_title: document.getElementById('wl-ae-title').value,
+                calling_ae: document.getElementById('wl-calling-ae').value
+            };
+        }
+
+        async function queryWorklist() {
+            const config = getWorklistConfig();
+            const patientName = document.getElementById('search-patient-name').value || '*';
+            const patientId = document.getElementById('search-patient-id').value;
+            const accessionNumber = document.getElementById('search-accession').value;
+            const scheduledDate = document.getElementById('search-date').value;
+            const modality = document.getElementById('search-modality').value;
+
+            const requestData = {
+                patient_name: patientName,
+                patient_id: patientId || null,
+                accession_number: accessionNumber || null,
+                scheduled_date: scheduledDate || null,
+                modality: modality || null,
+                config: config
+            };
+
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Querying worklist...</p></div>';
+
+            try {
+                const response = await fetch('/api/worklist/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayWorklistResults(result.items);
+                } else {
+                    resultsContainer.innerHTML = `<div class="no-results">Error: ${result.detail}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="no-results">Error: ${error.message}</div>`;
+            }
+        }
+
+        function displayWorklistResults(items) {
+            const resultsContainer = document.getElementById('results-container');
+
+            if (!items || items.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">No worklist items found</div>';
+                return;
+            }
+
+            let tableHTML = `
+                <table class="worklist-table">
+                    <thead>
+                        <tr>
+                            <th>Patient Name</th>
+                            <th>Patient ID</th>
+                            <th>DOB</th>
+                            <th>Accession</th>
+                            <th>Modality</th>
+                            <th>Scheduled Date</th>
+                            <th>Procedure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            items.forEach((item, index) => {
+                tableHTML += `
+                    <tr onclick="selectWorklistItem(${index})">
+                        <td>${item.patient_name || ''}</td>
+                        <td>${item.patient_id || ''}</td>
+                        <td>${item.patient_birth_date || ''}</td>
+                        <td>${item.accession_number || ''}</td>
+                        <td>${item.modality || ''}</td>
+                        <td>${item.scheduled_date || ''} ${item.scheduled_time || ''}</td>
+                        <td>${item.procedure_description || item.requested_procedure_description || ''}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+            resultsContainer.innerHTML = tableHTML;
+
+            // Store items for selection
+            window.worklistItems = items;
+        }
+
+        function selectWorklistItem(index) {
+            selectedWorklistItem = window.worklistItems[index];
+
+            // Highlight selected row
+            document.querySelectorAll('.worklist-table tr').forEach((row, i) => {
+                if (i === index + 1) { // +1 for header row
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            });
+
+            // Display selected patient info
+            displaySelectedPatient(selectedWorklistItem);
+        }
+
+        function displaySelectedPatient(item) {
+            const selectedSection = document.getElementById('selected-section');
+            const selectedInfo = document.getElementById('selected-info');
+
+            selectedInfo.innerHTML = `
+                <h3>${item.patient_name}</h3>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
+                    <div><strong>Patient ID:</strong> ${item.patient_id || 'N/A'}</div>
+                    <div><strong>Date of Birth:</strong> ${item.patient_birth_date || 'N/A'}</div>
+                    <div><strong>Sex:</strong> ${item.patient_sex || 'N/A'}</div>
+                    <div><strong>Accession:</strong> ${item.accession_number || 'N/A'}</div>
+                    <div><strong>Modality:</strong> ${item.modality || 'N/A'}</div>
+                    <div><strong>Scheduled:</strong> ${item.scheduled_date || ''} ${item.scheduled_time || ''}</div>
+                    <div style="grid-column: 1 / -1;"><strong>Procedure:</strong> ${item.procedure_description || item.requested_procedure_description || 'N/A'}</div>
+                    <div style="grid-column: 1 / -1;"><strong>Physician:</strong> ${item.scheduled_physician || 'N/A'}</div>
+                </div>
+            `;
+
+            selectedSection.style.display = 'block';
+        }
+
+        function useSelectedPatient() {
+            if (!selectedWorklistItem) {
+                alert('No patient selected');
+                return;
+            }
+
+            // Store in sessionStorage
+            sessionStorage.setItem('worklistItem', JSON.stringify(selectedWorklistItem));
+
+            // Redirect to main page
+            window.location.href = '/?from=worklist';
+        }
+
+        function clearFilters() {
+            document.getElementById('search-patient-name').value = '';
+            document.getElementById('search-patient-id').value = '';
+            document.getElementById('search-accession').value = '';
+            document.getElementById('search-date').value = '';
+            document.getElementById('search-modality').value = '';
+        }
+
+        // Set today's date as default
+        document.getElementById('search-date').valueAsDate = new Date();
+    </script>
+</body>
+</html>

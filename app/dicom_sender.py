@@ -62,10 +62,10 @@ class DicomSender:
             tuple: (success, message)
         """
         try:
-            from pynetdicom.sop_class import VerificationSOPClass
+            from pynetdicom.sop_class import Verification
 
             ae = AE()
-            ae.add_requested_context(VerificationSOPClass)
+            ae.add_requested_context(Verification)
             ae.ae_title = destination.calling_ae_title
 
             assoc = ae.associate(

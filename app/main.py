@@ -13,10 +13,13 @@ from app.models import (
     DicomMetadata,
     DicomDestination,
     ConversionRequest,
-    ConversionResponse
+    ConversionResponse,
+    WorklistConfig,
+    WorklistQueryRequest
 )
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
+from app.dicom_worklist import WorklistQuery
 
 app = FastAPI(
     title="Documents to DICOM (D2D)",
@@ -52,6 +55,60 @@ async def read_root():
     if html_file.exists():
         return FileResponse(html_file)
     return HTMLResponse("<h1>D2D - Documents to DICOM</h1><p>Static files not found</p>")
+
+@app.get("/diagnostics", response_class=HTMLResponse)
+async def diagnostics():
+    """Serve the network diagnostics page"""
+    html_file = Path("static/diagnostics.html")
+    if html_file.exists():
+        return FileResponse(html_file)
+    return HTMLResponse("<h1>Network Diagnostics</h1><p>Diagnostics page not found</p>")
+
+@app.get("/worklist", response_class=HTMLResponse)
+async def worklist():
+    """Serve the worklist query page"""
+    html_file = Path("static/worklist.html")
+    if html_file.exists():
+        return FileResponse(html_file)
+    return HTMLResponse("<h1>Modality Worklist</h1><p>Worklist page not found</p>")
+
+@app.get("/api/network-info")
+async def network_info():
+    """Get container network information"""
+    import socket
+    import subprocess
+    import os
+
+    info = {}
+
+    # Get hostname
+    try:
+        info["hostname"] = socket.gethostname()
+    except:
+        info["hostname"] = "unknown"
+
+    # Get local IP addresses
+    try:
+        hostname = socket.gethostname()
+        info["local_ips"] = socket.gethostbyname_ex(hostname)[2]
+    except:
+        info["local_ips"] = []
+
+    # Try to get more detailed network info
+    try:
+        result = subprocess.run(['ip', 'addr', 'show'], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            info["ip_addr_output"] = result.stdout
+    except:
+        info["ip_addr_output"] = "Command not available"
+
+    # Get environment variables related to networking
+    info["network_env"] = {
+        k: v for k, v in os.environ.items()
+        if any(x in k.upper() for x in ['HOST', 'PORT', 'IP', 'NETWORK', 'AZURE'])
+    }
+
+    return info
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -219,6 +276,143 @@ async def download_archive(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path, media_type="application/dicom", filename=filename)
+
+@app.get("/api/test-pacs")
+async def test_pacs_quick():
+    """Quick test to PACS at 10.17.1.21:5000"""
+    import socket
+    host = "10.17.1.21"
+    port = 5000
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex((host, port))
+        sock.close()
+
+        success = (result == 0)
+        return {
+            "target": f"{host}:{port}",
+            "reachable": success,
+            "error_code": result,
+            "message": "Connection successful!" if success else f"Connection failed (error code: {result})"
+        }
+    except Exception as e:
+        return {
+            "target": f"{host}:{port}",
+            "reachable": False,
+            "error": str(e),
+            "message": f"Test failed: {str(e)}"
+        }
+
+@app.post("/api/test-connectivity")
+async def test_connectivity(host: str = Form(...), port: int = Form(...)):
+    """Test network connectivity to a PACS server"""
+    import socket
+    results = {}
+
+    # Test 1: TCP connection
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex((host, port))
+        sock.close()
+
+        tcp_success = (result == 0)
+        results["tcp"] = {
+            "success": tcp_success,
+            "message": f"TCP connection {'successful' if tcp_success else 'failed'} (code: {result})"
+        }
+    except Exception as e:
+        results["tcp"] = {"success": False, "message": f"TCP test failed: {str(e)}"}
+
+    # Test 2: DICOM C-ECHO
+    try:
+        from pynetdicom import AE
+        from pynetdicom.sop_class import Verification
+
+        ae = AE()
+        ae.add_requested_context(Verification)
+        ae.ae_title = "D2D_SCU"
+
+        assoc = ae.associate(host, port, ae_title="ANY-SCP")
+
+        if assoc.is_established:
+            status = assoc.send_c_echo()
+            assoc.release()
+
+            dicom_success = bool(status)
+            results["dicom"] = {
+                "success": dicom_success,
+                "message": f"DICOM C-ECHO {'successful' if dicom_success else 'failed'}"
+            }
+        else:
+            results["dicom"] = {"success": False, "message": "DICOM association rejected"}
+
+    except Exception as e:
+        results["dicom"] = {"success": False, "message": f"DICOM test failed: {str(e)}"}
+
+    return {"results": results, "target": f"{host}:{port}"}
+
+@app.post("/api/worklist/query")
+async def query_worklist(request: WorklistQueryRequest):
+    """Query the modality worklist for scheduled studies"""
+    try:
+        config = request.config or WorklistConfig()
+
+        worklist = WorklistQuery(
+            host=config.host,
+            port=config.port,
+            ae_title=config.ae_title,
+            calling_ae=config.calling_ae
+        )
+
+        success, items, message = worklist.query_worklist(
+            patient_name=request.patient_name,
+            patient_id=request.patient_id,
+            accession_number=request.accession_number,
+            scheduled_date=request.scheduled_date,
+            modality=request.modality
+        )
+
+        if success:
+            return {
+                "success": True,
+                "items": items,
+                "count": len(items),
+                "message": message
+            }
+        else:
+            raise HTTPException(status_code=500, detail=message)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/worklist/test")
+async def test_worklist_connection(config: WorklistConfig):
+    """Test connection to worklist server"""
+    try:
+        worklist = WorklistQuery(
+            host=config.host,
+            port=config.port,
+            ae_title=config.ae_title,
+            calling_ae=config.calling_ae
+        )
+
+        success, message = worklist.test_connection()
+
+        if success:
+            return {"success": True, "message": message}
+        else:
+            raise HTTPException(status_code=500, detail=message)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/worklist/config")
+async def get_worklist_config():
+    """Get default worklist configuration"""
+    return WorklistConfig().model_dump()
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Diagnostics - D2D</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .diagnostic-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .diagnostic-result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .diagnostic-result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .diagnostic-result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .test-button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .test-button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🔧 Network Diagnostics</h1>
+            <p class="subtitle">Test connectivity from the D2D container</p>
+            <a href="/" style="color: #007bff;">← Back to D2D</a>
+        </header>
+
+        <div class="content">
+            <!-- Quick PACS Test -->
+            <section class="card">
+                <h2>Quick PACS Test (10.17.1.21:5000)</h2>
+                <button class="test-button" onclick="testPACS()">Test PACS Connection</button>
+                <div id="pacs-result"></div>
+            </section>
+
+            <!-- Custom Host Test -->
+            <section class="card">
+                <h2>Custom Network Test</h2>
+                <div class="form-group">
+                    <label for="test-host">Host/IP:</label>
+                    <input type="text" id="test-host" placeholder="10.17.1.21" value="10.17.1.21">
+                </div>
+                <div class="form-group">
+                    <label for="test-port">Port:</label>
+                    <input type="number" id="test-port" placeholder="5000" value="5000">
+                </div>
+                <button class="test-button" onclick="testCustomHost()">Test Connection</button>
+                <div id="custom-result"></div>
+            </section>
+
+            <!-- Network Information -->
+            <section class="card">
+                <h2>Container Network Info</h2>
+                <button class="test-button" onclick="getNetworkInfo()">Get Network Info</button>
+                <div id="network-info"></div>
+            </section>
+
+            <!-- Common Hosts to Test -->
+            <section class="card">
+                <h2>Quick Tests</h2>
+                <button class="test-button" onclick="testHost('8.8.8.8', 53, 'google-dns')">Test Google DNS (8.8.8.8:53)</button>
+                <button class="test-button" onclick="testHost('1.1.1.1', 53, 'cloudflare-dns')">Test Cloudflare DNS (1.1.1.1:53)</button>
+                <button class="test-button" onclick="testHost('10.17.1.21', 5000, 'pacs')">Test PACS (10.17.1.21:5000)</button>
+                <div id="quick-tests"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        async function testPACS() {
+            const resultDiv = document.getElementById('pacs-result');
+            resultDiv.innerHTML = '<div class="diagnostic-result info">Testing connection to 10.17.1.21:5000...</div>';
+
+            try {
+                const response = await fetch('/api/test-pacs');
+                const data = await response.json();
+
+                let resultClass = data.reachable ? 'success' : 'error';
+                let icon = data.reachable ? '✓' : '✗';
+
+                resultDiv.innerHTML = `
+                    <div class="diagnostic-result ${resultClass}">
+                        <strong>${icon} ${data.message}</strong><br>
+                        Target: ${data.target}<br>
+                        Reachable: ${data.reachable}<br>
+                        Error Code: ${data.error_code || data.error || 'N/A'}
+                    </div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="diagnostic-result error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testCustomHost() {
+            const host = document.getElementById('test-host').value;
+            const port = document.getElementById('test-port').value;
+            const resultDiv = document.getElementById('custom-result');
+
+            resultDiv.innerHTML = `<div class="diagnostic-result info">Testing connection to ${host}:${port}...</div>`;
+
+            try {
+                const formData = new FormData();
+                formData.append('host', host);
+                formData.append('port', port);
+
+                const response = await fetch('/api/test-connectivity', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                let tcp = data.results.tcp;
+                let dicom = data.results.dicom;
+
+                let tcpClass = tcp.success ? 'success' : 'error';
+                let dicomClass = dicom.success ? 'success' : 'error';
+
+                resultDiv.innerHTML = `
+                    <div class="diagnostic-result ${tcpClass}">
+                        <strong>${tcp.success ? '✓' : '✗'} TCP Test</strong><br>
+                        ${tcp.message}
+                    </div>
+                    <div class="diagnostic-result ${dicomClass}">
+                        <strong>${dicom.success ? '✓' : '✗'} DICOM C-ECHO Test</strong><br>
+                        ${dicom.message}
+                    </div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="diagnostic-result error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testHost(host, port, id) {
+            const resultDiv = document.getElementById('quick-tests');
+            const testId = `test-${id}-${Date.now()}`;
+
+            resultDiv.innerHTML += `<div id="${testId}" class="diagnostic-result info">Testing ${host}:${port}...</div>`;
+
+            try {
+                const formData = new FormData();
+                formData.append('host', host);
+                formData.append('port', port);
+
+                const response = await fetch('/api/test-connectivity', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                const tcp = data.results.tcp;
+                const resultClass = tcp.success ? 'success' : 'error';
+
+                document.getElementById(testId).outerHTML = `
+                    <div class="diagnostic-result ${resultClass}">
+                        ${tcp.success ? '✓' : '✗'} ${host}:${port} - ${tcp.message}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById(testId).outerHTML = `
+                    <div class="diagnostic-result error">✗ ${host}:${port} - Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function getNetworkInfo() {
+            const resultDiv = document.getElementById('network-info');
+            resultDiv.innerHTML = '<div class="diagnostic-result info">Fetching network information...</div>';
+
+            try {
+                const response = await fetch('/api/network-info');
+                const data = await response.json();
+
+                resultDiv.innerHTML = `
+                    <div class="diagnostic-result info">
+                        <strong>Container Network Information</strong>
+                    </div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="diagnostic-result error">✗ Error: ${error.message}<br>Note: Network info endpoint may not be implemented yet.</div>`;
+            }
+        }
+
+        // Auto-run PACS test on load
+        window.addEventListener('load', () => {
+            testPACS();
+        });
+    </script>
+</body>
+</html>
