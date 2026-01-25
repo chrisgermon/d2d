@@ -66,9 +66,27 @@ sender = DicomSender()
 uploaded_files = {}
 
 # Store DICOM destinations (in production, use a database)
-destinations_file = Path("destinations.json")
+# Use absolute path based on app directory to ensure consistency
+destinations_file = Path(__file__).parent.parent / "destinations.json"
 if not destinations_file.exists():
     destinations_file.write_text("[]")
+
+
+def load_destinations() -> list:
+    """Load destinations from file with error handling"""
+    try:
+        if destinations_file.exists():
+            content = destinations_file.read_text()
+            if content.strip():
+                return json.loads(content)
+        return []
+    except (json.JSONDecodeError, IOError):
+        return []
+
+
+def save_destinations(destinations: list) -> None:
+    """Save destinations to file with error handling"""
+    destinations_file.write_text(json.dumps(destinations, indent=2))
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -259,23 +277,22 @@ async def send_dicom_file(
 @app.get("/api/destinations")
 async def get_destinations(api_key: str = Depends(verify_api_key)):
     """Get all saved DICOM destinations"""
-    destinations = json.loads(destinations_file.read_text())
-    return {"destinations": destinations}
+    return {"destinations": load_destinations()}
 
 @app.post("/api/destinations")
 async def save_destination(destination: DicomDestination, api_key: str = Depends(verify_api_key)):
     """Save a new DICOM destination"""
-    destinations = json.loads(destinations_file.read_text())
+    destinations = load_destinations()
     destinations.append(destination.model_dump())
-    destinations_file.write_text(json.dumps(destinations, indent=2))
+    save_destinations(destinations)
     return {"success": True, "message": "Destination saved"}
 
 @app.delete("/api/destinations/{destination_name}")
 async def delete_destination(destination_name: str, api_key: str = Depends(verify_api_key)):
     """Delete a DICOM destination"""
-    destinations = json.loads(destinations_file.read_text())
+    destinations = load_destinations()
     destinations = [d for d in destinations if d["name"] != destination_name]
-    destinations_file.write_text(json.dumps(destinations, indent=2))
+    save_destinations(destinations)
     return {"success": True, "message": "Destination deleted"}
 
 @app.post("/api/destinations/verify")
