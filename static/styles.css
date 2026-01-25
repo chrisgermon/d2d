@@ -401,6 +401,27 @@ body {
     color: #666;
 }
 
+/* Footer */
+.page-footer {
+    margin-top: 2rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+}
+
+.page-footer .footer-info {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+}
+
+.page-footer .footer-label {
+    font-weight: 600;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header h1 {

@@ -422,7 +422,8 @@ async def query_worklist(request: WorklistQueryRequest, api_key: str = Depends(v
             patient_id=request.patient_id,
             accession_number=request.accession_number,
             scheduled_date=request.scheduled_date,
-            modality=request.modality
+            modality=request.modality,
+            station_ae_title=request.station_ae_title
         )
 
         if success:
@@ -514,7 +515,8 @@ async def get_settings():
         "archive_path": str(settings.archive_path),
         "upload_path": str(settings.upload_path),
         "host": settings.host,
-        "port": settings.port
+        "port": settings.port,
+        "deployment_timestamp": settings.deployment_timestamp
     }
 
 @app.get("/api/settings/security")
