@@ -271,6 +271,7 @@ class WorklistQuery:
             # Include AE titles used for this query
             item['calling_ae'] = self.calling_ae
             item['server_ae_title'] = self.ae_title
+            item['worklist_ae_title'] = self.ae_title
 
             return item
 
