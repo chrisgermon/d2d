@@ -377,14 +377,7 @@ function setupUploadArea() {
     const uploadArea = document.getElementById('upload-area');
     const fileInput = document.getElementById('file-input');
 
-    uploadArea.addEventListener('click', (e) => {
-        // The label handles clicks on the content area natively
-        // Only trigger for clicks on the upload-area padding (outside the label)
-        const label = uploadArea.querySelector('label');
-        if (!label.contains(e.target) && e.target !== fileInput) {
-            fileInput.click();
-        }
-    });
+    // File input overlays the entire upload area, so no click handler needed
 
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
