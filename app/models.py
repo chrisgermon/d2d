@@ -44,8 +44,8 @@ class WorklistConfig(BaseModel):
     """Worklist server configuration"""
     host: str = Field(default="10.17.1.21", description="Worklist server IP")
     port: int = Field(default=5010, description="Worklist server port")
-    ae_title: str = Field(default="AURVCMOD1", description="Worklist server AE Title")
-    calling_ae: str = Field(default="LIVUSWL", description="Our AE Title for worklist queries")
+    ae_title: str = Field(default="LIVUSWL", description="Worklist server AE Title")
+    calling_ae: str = Field(default="D2DSERVER", description="Our AE Title for worklist queries")
 
 class WorklistQueryRequest(BaseModel):
     """Request to query modality worklist"""
@@ -67,4 +67,5 @@ class WorklistQueryAllRequest(BaseModel):
     modality: Optional[str] = None
     host: str = "10.17.1.21"
     port: int = 5010
-    ae_title: str = "AURVCMOD1"
+    ae_title: str = "LIVUSWL"
+    calling_ae: str = "D2DSERVER"

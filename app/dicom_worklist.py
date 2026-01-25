@@ -73,7 +73,7 @@ class WorklistQuery:
     """Handle DICOM Modality Worklist (MWL) queries"""
 
     def __init__(self, host: str = "10.17.1.21", port: int = 5010,
-                 ae_title: str = "AURVCMOD1", calling_ae: str = "LIVUSWL"):
+                 ae_title: str = "LIVUSWL", calling_ae: str = "D2DSERVER"):
         self.host = host
         self.port = port
         self.ae_title = ae_title
@@ -268,8 +268,9 @@ class WorklistQuery:
                 item['scheduled_station_name'] = str(sps.get('ScheduledStationName', ''))
                 item['procedure_step_id'] = str(sps.get('ScheduledProcedureStepID', ''))
 
-            # Include which calling AE was used for this query
+            # Include AE titles used for this query
             item['calling_ae'] = self.calling_ae
+            item['server_ae_title'] = self.ae_title
 
             return item
 
@@ -338,7 +339,7 @@ def query_single_ae(
 ) -> tuple[str, bool, List[Dict], str]:
     """
     Query a single AE Title and return results.
-    Returns: (calling_ae, success, items, message)
+    Returns: (called_ae, success, items, message)
     """
     try:
         worklist = WorklistQuery(
@@ -355,15 +356,15 @@ def query_single_ae(
             modality=modality,
             station_ae_title=station_ae_title
         )
-        return (calling_ae, success, items, message)
+        return (ae_title, success, items, message)
     except Exception as e:
-        return (calling_ae, False, [], f"Error: {str(e)}")
+        return (ae_title, False, [], f"Error: {str(e)}")
 
 
 async def query_all_worklists(
     host: str = "10.17.1.21",
     port: int = 5010,
-    ae_title: str = "AURVCMOD1",
+    calling_ae: str = "D2DSERVER",
     patient_name: Optional[str] = None,
     patient_id: Optional[str] = None,
     accession_number: Optional[str] = None,
@@ -378,13 +379,13 @@ async def query_all_worklists(
     Args:
         host: Worklist server IP
         port: Worklist server port
-        ae_title: Worklist server AE Title
+        calling_ae: Calling AE Title for the association
         patient_name: Patient name filter
         patient_id: Patient ID filter
         accession_number: Accession number filter
         scheduled_date: Scheduled date filter
         modality: Modality filter
-        ae_titles: List of calling AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
+        ae_titles: List of called AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
         max_workers: Maximum concurrent queries
 
     Returns:
@@ -411,7 +412,7 @@ async def query_all_worklists(
                 calling_ae,
                 host,
                 port,
-                ae_title,
+                called_ae,
                 patient_name,
                 patient_id,
                 accession_number,
@@ -419,7 +420,7 @@ async def query_all_worklists(
                 modality,
                 None
             )
-            for calling_ae in ae_titles
+            for called_ae in ae_titles
         ]
 
         # Wait for all queries to complete
@@ -429,8 +430,8 @@ async def query_all_worklists(
             if isinstance(result, Exception):
                 continue
 
-            calling_ae, success, items, message = result
-            status_dict[calling_ae] = message
+            called_ae, success, items, message = result
+            status_dict[called_ae] = message
 
             if success:
                 successful_count += 1
