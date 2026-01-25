@@ -202,7 +202,7 @@ function renderPatientList() {
                 ${patient.procedure_description || patient.requested_procedure_description ?
                     `<div class="patient-item-study">${patient.procedure_description || patient.requested_procedure_description}</div>` : ''}
             </div>
-            ${patient.server_ae_title ? `<span class="patient-item-site">${patient.server_ae_title}</span>` : ''}
+            ${patient.worklist_ae_title || patient.server_ae_title ? `<span class="patient-item-worklist">${patient.worklist_ae_title || patient.server_ae_title}</span>` : ''}
         </div>
     `).join('');
 }
@@ -223,6 +223,14 @@ function selectPatient(index) {
     document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
     document.getElementById('selected-patient-study').textContent =
         selectedPatient.procedure_description || selectedPatient.requested_procedure_description || 'Document Conversion';
+
+    // Show worklist AE title if available
+    const worklistEl = document.getElementById('selected-patient-worklist');
+    const worklistAeTitle = selectedPatient.worklist_ae_title || selectedPatient.server_ae_title;
+    if (worklistEl) {
+        worklistEl.textContent = worklistAeTitle ? `Worklist: ${worklistAeTitle}` : '';
+        worklistEl.style.display = worklistAeTitle ? 'inline-block' : 'none';
+    }
 
     // Hide list, show selected
     listEl.style.display = 'none';
@@ -369,7 +377,12 @@ function setupUploadArea() {
     const uploadArea = document.getElementById('upload-area');
     const fileInput = document.getElementById('file-input');
 
-    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('click', (e) => {
+        // Prevent infinite loop - don't trigger if clicking on the file input itself
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
 
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -490,8 +503,35 @@ async function loadDestinations() {
         }
         const data = await response.json();
         destinations = data.destinations;
+
+        // Add default VRG PACS if no destinations exist
+        if (destinations.length === 0) {
+            const defaultDest = {
+                name: 'VRG PACS',
+                ae_title: 'AURVCMOD1',
+                host: '10.17.1.21',
+                port: 104,
+                calling_ae_title: 'D2D_SCU'
+            };
+            // Save it to the backend
+            await apiFetch('/api/destinations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(defaultDest)
+            });
+            destinations = [defaultDest];
+        }
+
         renderDestinationSelect();
         renderSavedDestinations();
+
+        // Auto-select the first destination (VRG PACS)
+        if (destinations.length > 0) {
+            const select = document.getElementById('destination-select');
+            select.value = destinations[0].name;
+            selectedDestination = destinations[0];
+            updateConvertButton();
+        }
     } catch (error) {
         console.error('Failed to load destinations:', error);
     }
@@ -622,6 +662,8 @@ function updateSummary() {
     document.getElementById('summary-accession').textContent = selectedPatient?.accession_number || '-';
     document.getElementById('summary-study').textContent =
         selectedPatient?.procedure_description || selectedPatient?.requested_procedure_description || 'Document Conversion';
+    document.getElementById('summary-worklist').textContent =
+        selectedPatient?.worklist_ae_title || selectedPatient?.server_ae_title || '-';
     document.getElementById('summary-files').textContent = uploadedFileId ? '1 file' : '0 files';
     document.getElementById('summary-destination').textContent = selectedDestination?.name || 'Not selected';
 }
