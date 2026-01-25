@@ -107,10 +107,13 @@ class WorklistQuery:
             query_ds = Dataset()
 
             # Patient Module (0010,xxxx)
-            if patient_name:
-                query_ds.PatientName = patient_name
+            cleaned_patient_name = (patient_name or "").strip()
+            if cleaned_patient_name and cleaned_patient_name != "*":
+                query_ds.PatientName = cleaned_patient_name
             else:
-                query_ds.PatientName = '*'  # Query all patients
+                # Use empty value for "match all" to avoid servers
+                # that treat "*" as a literal character.
+                query_ds.PatientName = ''
 
             if patient_id:
                 query_ds.PatientID = patient_id
@@ -147,7 +150,12 @@ class WorklistQuery:
 
             sps_item.ScheduledPerformingPhysicianName = ''
             sps_item.ScheduledProcedureStepDescription = ''
-            sps_item.ScheduledStationAETitle = ''
+            station_ae = (self.calling_ae or "").strip()
+            if station_ae.endswith("WL"):
+                # Many MWL servers require a station AE filter.
+                sps_item.ScheduledStationAETitle = station_ae
+            else:
+                sps_item.ScheduledStationAETitle = ''
             sps_item.ScheduledProcedureStepID = ''
             sps_item.ScheduledStationName = ''
             sps_item.ScheduledProcedureStepLocation = ''
