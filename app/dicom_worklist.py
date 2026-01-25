@@ -463,7 +463,7 @@ async def query_all_worklists(
         message=message,
         host=host,
         port=port,
-        ae_title=ae_title,
+        ae_title=calling_ae,
         ae_titles_queried=len(ae_titles),
         successful_queries=successful_count,
         results_count=len(unique_items)
