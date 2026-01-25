@@ -54,6 +54,7 @@ class WorklistQueryRequest(BaseModel):
     accession_number: Optional[str] = None
     scheduled_date: Optional[date] = None
     modality: Optional[str] = None
+    station_ae_title: Optional[str] = None
     config: Optional[WorklistConfig] = WorklistConfig()
 
 

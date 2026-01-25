@@ -85,7 +85,8 @@ class WorklistQuery:
         patient_id: Optional[str] = None,
         accession_number: Optional[str] = None,
         scheduled_date: Optional[date] = None,
-        modality: Optional[str] = None
+        modality: Optional[str] = None,
+        station_ae_title: Optional[str] = None
     ) -> tuple[bool, List[Dict], str]:
         """
         Query the modality worklist for scheduled studies
@@ -148,11 +149,12 @@ class WorklistQuery:
 
             sps_item.ScheduledPerformingPhysicianName = ''
             sps_item.ScheduledProcedureStepDescription = ''
-            station_ae = (self.calling_ae or "").strip()
-            if station_ae.endswith("WL"):
-                # Many MWL servers require a station AE filter.
+            station_ae = (station_ae_title or "").strip()
+            if station_ae:
+                # Only filter when explicitly requested.
                 sps_item.ScheduledStationAETitle = station_ae
             else:
+                # Empty value requests return without filtering.
                 sps_item.ScheduledStationAETitle = ''
             sps_item.ScheduledProcedureStepID = ''
             sps_item.ScheduledStationName = ''
@@ -182,6 +184,7 @@ class WorklistQuery:
                     if identifier:
                         worklist_item = self._parse_worklist_item(identifier)
                         if worklist_item:
+                            worklist_item['station_ae_title'] = station_ae
                             worklist_items.append(worklist_item)
 
             assoc.release()
@@ -286,7 +289,8 @@ def query_single_ae(
     patient_id: Optional[str] = None,
     accession_number: Optional[str] = None,
     scheduled_date: Optional[date] = None,
-    modality: Optional[str] = None
+    modality: Optional[str] = None,
+    station_ae_title: Optional[str] = None
 ) -> tuple[str, bool, List[Dict], str]:
     """
     Query a single AE Title and return results.
@@ -304,7 +308,8 @@ def query_single_ae(
             patient_id=patient_id,
             accession_number=accession_number,
             scheduled_date=scheduled_date,
-            modality=modality
+            modality=modality,
+            station_ae_title=station_ae_title
         )
         return (calling_ae, success, items, message)
     except Exception as e:
@@ -335,7 +340,7 @@ async def query_all_worklists(
         accession_number: Accession number filter
         scheduled_date: Scheduled date filter
         modality: Modality filter
-        ae_titles: List of AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
+        ae_titles: List of calling AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
         max_workers: Maximum concurrent queries
 
     Returns:
@@ -367,7 +372,8 @@ async def query_all_worklists(
                 patient_id,
                 accession_number,
                 scheduled_date,
-                modality
+                modality,
+                None
             )
             for calling_ae in ae_titles
         ]
