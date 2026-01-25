@@ -22,14 +22,21 @@ function clearStoredApiKey() {
 async function apiFetch(url, options = {}) {
     const apiKey = getStoredApiKey();
 
-    // Merge headers
-    const headers = options.headers || {};
+    // Build headers - start with API key, then merge any additional headers from options
+    const headers = {};
     if (apiKey) {
         headers['X-API-Key'] = apiKey;
     }
+    // Merge in any headers from options (e.g., Content-Type for JSON)
+    if (options.headers) {
+        Object.assign(headers, options.headers);
+    }
+
+    // Create new options without the original headers to avoid duplication
+    const { headers: _originalHeaders, ...restOptions } = options;
 
     const response = await fetch(url, {
-        ...options,
+        ...restOptions,
         headers
     });
 
@@ -37,19 +44,21 @@ async function apiFetch(url, options = {}) {
     if (response.status === 401) {
         const shouldPrompt = confirm(
             'API authentication required. Would you like to enter an API key?\n\n' +
+            'You can find your API key in the Settings page under "Security Settings".\n\n' +
             'Click OK to enter a key, or Cancel to go to Settings.'
         );
 
         if (shouldPrompt) {
-            const newKey = prompt('Enter your API key:');
+            const newKey = prompt('Enter your API key:\n\n(Hint: Check Settings > Security Settings to view or generate API keys)');
             if (newKey) {
                 setStoredApiKey(newKey);
                 // Retry the request with the new key
                 headers['X-API-Key'] = newKey;
-                return fetch(url, { ...options, headers });
+                return fetch(url, { ...restOptions, headers });
             }
         } else {
             window.location.href = '/settings';
+            return response; // Return response to prevent further execution
         }
     }
 

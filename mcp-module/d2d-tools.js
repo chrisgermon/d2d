@@ -35,20 +35,26 @@ const D2D_CONFIG = {
  */
 async function d2dApiCall(endpoint, options = {}) {
   const url = `${D2D_CONFIG.apiUrl}${endpoint}`;
-  const headers = {
-    ...options.headers,
-  };
 
+  // Build headers - start with API key, then merge any additional headers
+  const headers = {};
   if (D2D_CONFIG.apiKey) {
     headers['X-API-Key'] = D2D_CONFIG.apiKey;
   }
+  // Merge in any headers from options (e.g., Content-Type for JSON, or FormData headers)
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  // Create new options without the original headers to avoid duplication
+  const { headers: _originalHeaders, ...restOptions } = options;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), D2D_CONFIG.timeout);
 
   try {
     const response = await fetch(url, {
-      ...options,
+      ...restOptions,
       headers,
       signal: controller.signal,
     });

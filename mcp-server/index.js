@@ -24,16 +24,22 @@ const D2D_API_KEY = process.env.D2D_API_KEY || '';
 // Helper function to make API calls to D2D
 async function d2dApiCall(endpoint, options = {}) {
   const url = `${D2D_API_URL}${endpoint}`;
-  const headers = {
-    ...options.headers,
-  };
 
+  // Build headers - start with API key, then merge any additional headers
+  const headers = {};
   if (D2D_API_KEY) {
     headers['X-API-Key'] = D2D_API_KEY;
   }
+  // Merge in any headers from options (e.g., Content-Type for JSON, or FormData headers)
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  // Create new options without the original headers to avoid duplication
+  const { headers: _originalHeaders, ...restOptions } = options;
 
   const response = await fetch(url, {
-    ...options,
+    ...restOptions,
     headers,
   });
 
