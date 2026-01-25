@@ -3,6 +3,68 @@ from pynetdicom.sop_class import ModalityWorklistInformationFind
 from pydicom.dataset import Dataset
 from typing import List, Optional, Dict
 from datetime import datetime, date
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+
+# Complete list of all AE Titles for worklist queries
+ALL_WORKLIST_AE_TITLES = [
+    "AUBCRWL", "AUBCTWL", "AUBUSWL",
+    "BOTCRWL", "BOTCTWL", "BOTUSWL",
+    "BULBMDWL", "BULCRWL", "BULCTWL", "BULMGWL", "BULMRWL", "BULUSWL",
+    "BUTCRWL", "BUTCTWL", "BUTUSWL",
+    "CARCRWL", "CARCTWL", "CARMRWL", "CARUSWL",
+    "COBBMDWL", "COBCRWL", "COBCTWL", "COBUSWL",
+    "COEUSWL",
+    "COLBMDWL", "COLCRWL", "COLCTWL", "COLUSWL",
+    "COOBMDWL", "COOCRWL", "COOCTWL", "COOMRWL", "COOUSWL",
+    "CRECRWL", "CRECTWL", "CREUSWL",
+    "DAPBMDWL", "DAPCRWL", "DAPCTWL", "DAPMRWL", "DAPUSWL",
+    "DIACRWL", "DIACTWL", "DIAUSWL",
+    "EARBMDWL", "EARCRWL", "EARCTWL", "EARMGWL", "EAROPGWL", "EARUSWL",
+    "ENEBMDWL", "ENECRWL", "ENECTWL", "ENEUSWL",
+    "ENGCRWL", "ENGCTWL", "ENGDEWL", "ENGUSWL",
+    "GRACRWL", "GRACTWL", "GRAUSWL",
+    "GRECRWL", "GRECTWL", "GREMGWL", "GREUSWL",
+    "GRNCRWL", "GRNCTWL", "GRNUSWL",
+    "HAMBMDWL", "HAMCRWL", "HAMCTWL", "HAMMRWL", "HAMUSWL",
+    "HAYBMDWL", "HAYCRWL", "HAYCTWL", "HAYMRWL", "HAYUSWL",
+    "HPKCRWL", "HPKCTWL", "HPKUSWL",
+    "KANBMDWL", "KANCRWL", "KANCTWL", "KANMRWL", "KANUSWL",
+    "KLEBMDWL", "KLECRWL", "KLECTWL", "KLEMRWL", "KLEUSWL",
+    "KYABMDWL", "KYACRWL", "KYACTWL", "KYAUSWL",
+    "LAKCRWL", "LAKCTWL", "LAKDEWL", "LAKUSWL",
+    "LILBMDWL", "LILCRWL", "LILCTWL", "LILMGWL", "LILMRWL", "LILUSWL",
+    "LIVCRWL", "LIVCTWL", "LIVUSWL",
+    "LOGCRWL", "LOGCTWL", "LOGMGWL", "LOGUSWL",
+    "LYNBMDWL", "LYNCRWL", "LYNCTWL", "LYNUSWL",
+    "MARBMDWL", "MARCRWL", "MARCTWL", "MARUSWL",
+    "MENBMDWL", "MENCRWL", "MENCTWL", "MENMGWL", "MENMRWL", "MENUSWL",
+    "MORBMDWL", "MORCRWL", "MORCTWL", "MORMRWL", "MORUSWL",
+    "MOVCRWL", "MOVCTWL", "MOVMRWL", "MOVUSWL",
+    "MULBMDWL", "MULCRWL", "MULCTWL", "MULMRWL", "MULUSWL",
+    "NAEUSWL",
+    "NAMBMDWL", "NAMCRWL", "NAMCTWL", "NAMUSWL",
+    "NOEUSWL",
+    "NOOBMDWL", "NOOCRWL", "NOOCTWL", "NOOUSWL",
+    "NORCRWL", "NORCTWL", "NOREOSWL", "NORUSWL",
+    "ONEUSWL",
+    "RESCRWL", "RESCTWL", "RESMGWL", "RESMRWL", "RESUSWL",
+    "RINBMDWL", "RINCRWL", "RINCTWL", "RINUSWL",
+    "ROCCRWL", "ROCCTWL", "ROCUSWL",
+    "SEBBMDWL", "SEBCRWL", "SEBCTWL", "SEBMRWL", "SEBUSWL",
+    "SHEBMDWL", "SHECRWL", "SHECTWL", "SHEMRWL", "SHEUSWL",
+    "TEEUSWL",
+    "TEWBMDWL", "TEWCRWL", "TEWCTWL", "TEWUSWL",
+    "THRBMDWL", "THRCRWL", "THRCTWL", "THRUSWL",
+    "TORBMDWL", "TORCRWL", "TORCTWL", "TORMRWL", "TORUSWL",
+    "UNLBMDWL", "UNLCRWL", "UNLCTWL", "UNLUSWL",
+    "WARCRWL", "WARCTWL", "WARUSWL",
+    "WERBMDWL", "WERCRWL", "WERCTWL", "WERMRWL", "WERUSWL",
+    "WILBMDWL", "WILCRWL", "WILCTWL", "WILMRWL", "WILUSWL",
+    "WOOCRWL", "WOOCTWL", "WOOUSWL",
+    "WRRCRWL", "WRRCTWL", "WRRUSWL",
+]
 
 
 class WorklistQuery:
@@ -151,6 +213,9 @@ class WorklistQuery:
                 item['scheduled_station_name'] = str(sps.get('ScheduledStationName', ''))
                 item['procedure_step_id'] = str(sps.get('ScheduledProcedureStepID', ''))
 
+            # Include which calling AE was used for this query
+            item['calling_ae'] = self.calling_ae
+
             return item
 
         except Exception as e:
@@ -202,3 +267,133 @@ class WorklistQuery:
 
         except Exception as e:
             return False, f"Connection failed: {str(e)}"
+
+
+def query_single_ae(
+    calling_ae: str,
+    host: str,
+    port: int,
+    ae_title: str,
+    patient_name: Optional[str] = None,
+    patient_id: Optional[str] = None,
+    accession_number: Optional[str] = None,
+    scheduled_date: Optional[date] = None,
+    modality: Optional[str] = None
+) -> tuple[str, bool, List[Dict], str]:
+    """
+    Query a single AE Title and return results.
+    Returns: (calling_ae, success, items, message)
+    """
+    try:
+        worklist = WorklistQuery(
+            host=host,
+            port=port,
+            ae_title=ae_title,
+            calling_ae=calling_ae
+        )
+        success, items, message = worklist.query_worklist(
+            patient_name=patient_name,
+            patient_id=patient_id,
+            accession_number=accession_number,
+            scheduled_date=scheduled_date,
+            modality=modality
+        )
+        return (calling_ae, success, items, message)
+    except Exception as e:
+        return (calling_ae, False, [], f"Error: {str(e)}")
+
+
+async def query_all_worklists(
+    host: str = "10.17.1.21",
+    port: int = 5010,
+    ae_title: str = "AURVCMOD1",
+    patient_name: Optional[str] = None,
+    patient_id: Optional[str] = None,
+    accession_number: Optional[str] = None,
+    scheduled_date: Optional[date] = None,
+    modality: Optional[str] = None,
+    ae_titles: Optional[List[str]] = None,
+    max_workers: int = 20
+) -> tuple[bool, List[Dict], Dict[str, str]]:
+    """
+    Query all AE Titles concurrently and return combined results.
+
+    Args:
+        host: Worklist server IP
+        port: Worklist server port
+        ae_title: Worklist server AE Title
+        patient_name: Patient name filter
+        patient_id: Patient ID filter
+        accession_number: Accession number filter
+        scheduled_date: Scheduled date filter
+        modality: Modality filter
+        ae_titles: List of AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
+        max_workers: Maximum concurrent queries
+
+    Returns:
+        tuple: (success, combined_items, status_dict)
+        - success: True if at least one query succeeded
+        - combined_items: All worklist items from all successful queries
+        - status_dict: Dict mapping AE Title to status message
+    """
+    if ae_titles is None:
+        ae_titles = ALL_WORKLIST_AE_TITLES
+
+    all_items = []
+    status_dict = {}
+    successful_count = 0
+
+    loop = asyncio.get_event_loop()
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create futures for all AE Title queries
+        futures = [
+            loop.run_in_executor(
+                executor,
+                query_single_ae,
+                calling_ae,
+                host,
+                port,
+                ae_title,
+                patient_name,
+                patient_id,
+                accession_number,
+                scheduled_date,
+                modality
+            )
+            for calling_ae in ae_titles
+        ]
+
+        # Wait for all queries to complete
+        results = await asyncio.gather(*futures, return_exceptions=True)
+
+        for result in results:
+            if isinstance(result, Exception):
+                continue
+
+            calling_ae, success, items, message = result
+            status_dict[calling_ae] = message
+
+            if success:
+                successful_count += 1
+                all_items.extend(items)
+
+    # Remove duplicates based on accession number (if present) or patient_id + scheduled_date
+    seen = set()
+    unique_items = []
+    for item in all_items:
+        # Create a unique key for deduplication
+        key = (
+            item.get('accession_number', ''),
+            item.get('patient_id', ''),
+            item.get('scheduled_date', ''),
+            item.get('modality', '')
+        )
+        if key not in seen:
+            seen.add(key)
+            unique_items.append(item)
+
+    overall_success = successful_count > 0
+    message = f"Queried {len(ae_titles)} AE Titles, {successful_count} successful, found {len(unique_items)} unique items"
+
+    return overall_success, unique_items, {"_summary": message, **status_dict}
