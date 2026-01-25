@@ -503,8 +503,35 @@ async function loadDestinations() {
         }
         const data = await response.json();
         destinations = data.destinations;
+
+        // Add default VRG PACS if no destinations exist
+        if (destinations.length === 0) {
+            const defaultDest = {
+                name: 'VRG PACS',
+                ae_title: 'VRGPACS',
+                host: '10.17.1.21',
+                port: 104,
+                calling_ae_title: 'D2D_SCU'
+            };
+            // Save it to the backend
+            await apiFetch('/api/destinations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(defaultDest)
+            });
+            destinations = [defaultDest];
+        }
+
         renderDestinationSelect();
         renderSavedDestinations();
+
+        // Auto-select the first destination (VRG PACS)
+        if (destinations.length > 0) {
+            const select = document.getElementById('destination-select');
+            select.value = destinations[0].name;
+            selectedDestination = destinations[0];
+            updateConvertButton();
+        }
     } catch (error) {
         console.error('Failed to load destinations:', error);
     }
