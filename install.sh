@@ -58,7 +58,7 @@ User=crowdit
 Group=crowdit
 WorkingDirectory=/opt/d2d
 Environment="PATH=/opt/d2d/venv/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/opt/d2d/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/opt/d2d/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*' --timeout-keep-alive 300
 Restart=always
 RestartSec=3
 
