@@ -27,4 +27,4 @@ fi
 echo "Starting D2D application..."
 echo "Access at: http://localhost:8000"
 echo "Press Ctrl+C to stop"
-python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*' --timeout-keep-alive 300

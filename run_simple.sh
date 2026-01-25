@@ -26,4 +26,4 @@ echo "Access at: http://localhost:8000"
 echo "Server IP: http://10.60.60.172:8000"
 echo "Press Ctrl+C to stop"
 echo ""
-python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*' --timeout-keep-alive 300
