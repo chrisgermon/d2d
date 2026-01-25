@@ -1,9 +1,13 @@
-// D2D Application JavaScript
+// D2D Application JavaScript - Redesigned Flow
 
 let uploadedFileId = null;
 let selectedDestination = null;
+let selectedPatient = null;
 let destinations = [];
+let patients = [];
+let filteredPatients = [];
 let apiKeyRequired = false;
+let currentStep = 1;
 
 // API Key Management
 function getStoredApiKey() {
@@ -14,25 +18,16 @@ function setStoredApiKey(key) {
     localStorage.setItem('d2d_api_key', key);
 }
 
-function clearStoredApiKey() {
-    localStorage.removeItem('d2d_api_key');
-}
-
 // Wrapper for fetch that handles API key authentication
 async function apiFetch(url, options = {}) {
     const apiKey = getStoredApiKey();
-
-    // Build headers - start with API key, then merge any additional headers from options
     const headers = {};
     if (apiKey) {
         headers['X-API-Key'] = apiKey;
     }
-    // Merge in any headers from options (e.g., Content-Type for JSON)
     if (options.headers) {
         Object.assign(headers, options.headers);
     }
-
-    // Create new options without the original headers to avoid duplication
     const { headers: _originalHeaders, ...restOptions } = options;
 
     const response = await fetch(url, {
@@ -40,25 +35,22 @@ async function apiFetch(url, options = {}) {
         headers
     });
 
-    // Handle 401 Unauthorized
     if (response.status === 401) {
         const shouldPrompt = confirm(
             'API authentication required. Would you like to enter an API key?\n\n' +
-            'You can find your API key in the Settings page under "Security Settings".\n\n' +
             'Click OK to enter a key, or Cancel to go to Settings.'
         );
 
         if (shouldPrompt) {
-            const newKey = prompt('Enter your API key:\n\n(Hint: Check Settings > Security Settings to view or generate API keys)');
+            const newKey = prompt('Enter your API key:');
             if (newKey) {
                 setStoredApiKey(newKey);
-                // Retry the request with the new key
                 headers['X-API-Key'] = newKey;
                 return fetch(url, { ...restOptions, headers });
             }
         } else {
             window.location.href = '/settings';
-            return response; // Return response to prevent further execution
+            return response;
         }
     }
 
@@ -90,96 +82,286 @@ function formatDateToAustralian(dateStr) {
 document.addEventListener('DOMContentLoaded', () => {
     checkApiSecurity();
     setupUploadArea();
-    setupMetadataForm();
-    setupDestinations();
+    setupPatientSearch();
     setupButtons();
+    setupDestinations();
     loadDestinations();
-    checkWorklistData();
+    loadPatients(); // Auto-query all sites on page load
 });
 
-// Check for worklist data from sessionStorage
-function checkWorklistData() {
-    const worklistItem = sessionStorage.getItem('worklistItem');
-    if (worklistItem) {
-        try {
-            const item = JSON.parse(worklistItem);
-            populateFromWorklist(item);
-            sessionStorage.removeItem('worklistItem'); // Clear after use
+// Step Navigation
+function updateStepIndicator(step) {
+    currentStep = step;
+    const steps = document.querySelectorAll('.step');
+    const lines = document.querySelectorAll('.step-line');
 
-            // Show notification
-            showNotification('Patient data loaded from worklist: ' + item.patient_name);
-        } catch (e) {
-            console.error('Error loading worklist data:', e);
+    steps.forEach((s, index) => {
+        const stepNum = index + 1;
+        s.classList.remove('active', 'completed');
+        if (stepNum < step) {
+            s.classList.add('completed');
+        } else if (stepNum === step) {
+            s.classList.add('active');
         }
+    });
+
+    lines.forEach((line, index) => {
+        line.classList.remove('completed');
+        if (index + 1 < step) {
+            line.classList.add('completed');
+        }
+    });
+}
+
+function goToStep(step) {
+    updateStepIndicator(step);
+
+    // Show/hide sections based on step
+    document.getElementById('patient-section').style.display = step >= 1 ? 'block' : 'none';
+    document.getElementById('upload-section').style.display = step >= 2 ? 'block' : 'none';
+    document.getElementById('review-section').style.display = step >= 3 ? 'block' : 'none';
+    document.getElementById('results-section').style.display = 'none';
+
+    if (step === 3) {
+        updateSummary();
     }
 }
 
-function populateFromWorklist(item) {
-    // Show metadata section
-    document.getElementById('metadata-section').style.display = 'block';
+// Patient Loading
+async function loadPatients() {
+    const loadingEl = document.getElementById('patient-loading');
+    const listEl = document.getElementById('patient-list');
+    const noPatients = document.getElementById('no-patients');
 
-    // Populate patient information
-    if (item.patient_name) {
-        document.getElementById('patient-name').value = item.patient_name;
-    }
-    if (item.patient_id) {
-        document.getElementById('patient-id').value = item.patient_id;
-    }
-    if (item.patient_birth_date) {
-        document.getElementById('patient-dob').value = item.patient_birth_date;
-    }
-    if (item.patient_sex) {
-        document.getElementById('patient-sex').value = item.patient_sex;
-    }
+    loadingEl.style.display = 'flex';
+    listEl.style.display = 'none';
+    noPatients.style.display = 'none';
 
-    // Populate study information
-    if (item.accession_number) {
-        document.getElementById('accession-number').value = item.accession_number;
-    }
-    if (item.procedure_description || item.requested_procedure_description) {
-        document.getElementById('study-description').value =
-            item.procedure_description || item.requested_procedure_description;
-    }
-    if (item.modality) {
-        document.getElementById('modality').value = item.modality;
-    }
-    if (item.scheduled_physician) {
-        document.getElementById('referring-physician').value = item.scheduled_physician;
-    }
+    try {
+        const response = await apiFetch('/api/worklist/query-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                host: '10.17.1.21',
+                port: 5010,
+                calling_ae: 'D2DSERVER'
+            })
+        });
 
-    // Set study date/time if scheduled
-    if (item.scheduled_date) {
-        document.getElementById('study-date').value = item.scheduled_date;
-    }
-    if (item.scheduled_time) {
-        document.getElementById('study-time').value = item.scheduled_time;
+        if (!response.ok) {
+            throw new Error('Failed to query worklist');
+        }
+
+        const data = await response.json();
+        patients = data.results || [];
+        filteredPatients = [...patients];
+
+        loadingEl.style.display = 'none';
+
+        if (patients.length === 0) {
+            noPatients.style.display = 'flex';
+        } else {
+            renderPatientList();
+            listEl.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Failed to load patients:', error);
+        loadingEl.style.display = 'none';
+        showError('Failed to load patients: ' + error.message);
+        noPatients.style.display = 'flex';
     }
 }
 
-function showNotification(message) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #4CAF50;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        z-index: 1000;
-        animation: slideIn 0.3s ease-out;
-    `;
-    notification.textContent = message;
+function renderPatientList() {
+    const listEl = document.getElementById('patient-list');
 
-    document.body.appendChild(notification);
+    if (filteredPatients.length === 0) {
+        listEl.innerHTML = `
+            <div class="empty-state">
+                <p>No patients match your search</p>
+            </div>
+        `;
+        return;
+    }
 
-    // Remove after 5 seconds
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => notification.remove(), 300);
-    }, 5000);
+    listEl.innerHTML = filteredPatients.map((patient, index) => `
+        <div class="patient-item" onclick="selectPatient(${index})">
+            <div class="patient-item-avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <div class="patient-item-info">
+                <div class="patient-item-name">${patient.patient_name || 'Unknown'}</div>
+                <div class="patient-item-meta">
+                    <span>ID: ${patient.patient_id || 'N/A'}</span>
+                    <span>DOB: ${formatDateToAustralian(patient.patient_birth_date) || 'N/A'}</span>
+                    <span>Acc: ${patient.accession_number || 'N/A'}</span>
+                </div>
+                ${patient.procedure_description || patient.requested_procedure_description ?
+                    `<div class="patient-item-study">${patient.procedure_description || patient.requested_procedure_description}</div>` : ''}
+            </div>
+            ${patient.server_ae_title ? `<span class="patient-item-site">${patient.server_ae_title}</span>` : ''}
+        </div>
+    `).join('');
+}
+
+function selectPatient(index) {
+    selectedPatient = filteredPatients[index];
+
+    // Update selected patient display
+    const selectedEl = document.getElementById('selected-patient');
+    const listEl = document.getElementById('patient-list');
+    const loadingEl = document.getElementById('patient-loading');
+    const noPatients = document.getElementById('no-patients');
+    const toolbarEl = document.querySelector('.patient-toolbar');
+
+    document.getElementById('selected-patient-name').textContent = selectedPatient.patient_name || 'Unknown';
+    document.getElementById('selected-patient-id').textContent = `ID: ${selectedPatient.patient_id || 'N/A'}`;
+    document.getElementById('selected-patient-dob').textContent = `DOB: ${formatDateToAustralian(selectedPatient.patient_birth_date) || 'N/A'}`;
+    document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
+    document.getElementById('selected-patient-study').textContent =
+        selectedPatient.procedure_description || selectedPatient.requested_procedure_description || 'Document Conversion';
+
+    // Hide list, show selected
+    listEl.style.display = 'none';
+    loadingEl.style.display = 'none';
+    noPatients.style.display = 'none';
+    toolbarEl.style.display = 'none';
+    selectedEl.style.display = 'block';
+
+    // Move to step 2
+    goToStep(2);
+    document.getElementById('upload-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function clearSelectedPatient() {
+    selectedPatient = null;
+    uploadedFileId = null;
+
+    const selectedEl = document.getElementById('selected-patient');
+    const listEl = document.getElementById('patient-list');
+    const toolbarEl = document.querySelector('.patient-toolbar');
+    const uploadedFilesEl = document.getElementById('uploaded-files');
+
+    selectedEl.style.display = 'none';
+    toolbarEl.style.display = 'flex';
+    uploadedFilesEl.style.display = 'none';
+    document.getElementById('files-list').innerHTML = '';
+
+    if (patients.length > 0) {
+        listEl.style.display = 'flex';
+    } else {
+        document.getElementById('no-patients').style.display = 'flex';
+    }
+
+    goToStep(1);
+    updateConvertButton();
+}
+
+function setupPatientSearch() {
+    const searchInput = document.getElementById('patient-search');
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+
+        if (!query) {
+            filteredPatients = [...patients];
+        } else {
+            filteredPatients = patients.filter(p =>
+                (p.patient_name && p.patient_name.toLowerCase().includes(query)) ||
+                (p.patient_id && p.patient_id.toLowerCase().includes(query)) ||
+                (p.accession_number && p.accession_number.toLowerCase().includes(query))
+            );
+        }
+
+        renderPatientList();
+    });
+
+    // Refresh button
+    document.getElementById('refresh-patients-btn').addEventListener('click', () => {
+        document.getElementById('patient-search').value = '';
+        loadPatients();
+    });
+
+    // Create patient button
+    document.getElementById('create-patient-btn').addEventListener('click', createPatient);
+}
+
+// Create Patient Modal
+function createPatient() {
+    document.getElementById('create-patient-modal').classList.add('active');
+}
+
+function closeCreatePatientModal() {
+    document.getElementById('create-patient-modal').classList.remove('active');
+    document.getElementById('create-patient-form').reset();
+}
+
+// Setup buttons
+function setupButtons() {
+    // Close create modal
+    document.getElementById('close-create-modal').addEventListener('click', closeCreatePatientModal);
+
+    // Create patient form submit
+    document.getElementById('create-patient-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        selectedPatient = {
+            patient_name: document.getElementById('new-patient-name').value,
+            patient_id: document.getElementById('new-patient-id').value,
+            patient_birth_date: document.getElementById('new-patient-dob').value || null,
+            patient_sex: document.getElementById('new-patient-sex').value || null,
+            accession_number: document.getElementById('new-accession').value || null,
+            procedure_description: document.getElementById('new-study-description').value || 'Document Conversion',
+            modality: document.getElementById('new-modality').value || 'OT',
+            referring_physician: document.getElementById('new-referring-physician').value || null
+        };
+
+        // Update selected patient display
+        document.getElementById('selected-patient-name').textContent = selectedPatient.patient_name;
+        document.getElementById('selected-patient-id').textContent = `ID: ${selectedPatient.patient_id}`;
+        document.getElementById('selected-patient-dob').textContent = `DOB: ${formatDateToAustralian(selectedPatient.patient_birth_date) || 'N/A'}`;
+        document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
+        document.getElementById('selected-patient-study').textContent = selectedPatient.procedure_description;
+
+        // Hide list, show selected
+        document.getElementById('patient-list').style.display = 'none';
+        document.getElementById('patient-loading').style.display = 'none';
+        document.getElementById('no-patients').style.display = 'none';
+        document.querySelector('.patient-toolbar').style.display = 'none';
+        document.getElementById('selected-patient').style.display = 'block';
+
+        closeCreatePatientModal();
+        goToStep(2);
+        document.getElementById('upload-section').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Back button
+    document.getElementById('back-btn').addEventListener('click', () => {
+        goToStep(2);
+    });
+
+    // Convert & Send button
+    document.getElementById('convert-send-btn').addEventListener('click', convertAndSend);
+
+    // New conversion button
+    document.getElementById('new-conversion-btn').addEventListener('click', resetForm);
+
+    // View archives button
+    document.getElementById('view-archives-btn').addEventListener('click', viewArchives);
+    document.getElementById('close-archives-modal').addEventListener('click', () => {
+        document.getElementById('archives-modal').classList.remove('active');
+    });
+
+    // Destination select change
+    document.getElementById('destination-select').addEventListener('change', (e) => {
+        const destName = e.target.value;
+        selectedDestination = destinations.find(d => d.name === destName) || null;
+        updateConvertButton();
+        updateSummary();
+    });
 }
 
 // File Upload
@@ -231,91 +413,74 @@ async function handleFileUpload(file) {
         const data = await response.json();
         uploadedFileId = data.file_id;
 
-        // Show file info
-        const fileInfo = document.getElementById('file-info');
-        fileInfo.style.display = 'block';
-        fileInfo.innerHTML = `
-            <strong>✓ File uploaded:</strong> ${data.filename}
-            (${(data.size / 1024).toFixed(2)} KB)
+        // Show uploaded file
+        const uploadedFilesEl = document.getElementById('uploaded-files');
+        const filesListEl = document.getElementById('files-list');
+
+        filesListEl.innerHTML = `
+            <div class="file-item">
+                <div class="file-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                </div>
+                <div class="file-info">
+                    <div class="file-name">${data.filename}</div>
+                    <div class="file-size">${(data.size / 1024).toFixed(2)} KB</div>
+                </div>
+                <button class="file-remove" onclick="removeFile()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
         `;
 
-        // Show metadata section
-        document.getElementById('metadata-section').style.display = 'block';
-        document.getElementById('metadata-section').scrollIntoView({ behavior: 'smooth' });
+        uploadedFilesEl.style.display = 'block';
+
+        // Move to step 3
+        goToStep(3);
+        updateConvertButton();
+        document.getElementById('review-section').scrollIntoView({ behavior: 'smooth' });
 
     } catch (error) {
-        alert('Upload failed: ' + error.message);
+        showError('Upload failed: ' + error.message);
     } finally {
         hideLoading();
     }
 }
 
-// Metadata Form
-function setupMetadataForm() {
-    const form = document.getElementById('metadata-form');
-    const inputs = form.querySelectorAll('input, select');
-
-    inputs.forEach(input => {
-        input.addEventListener('input', checkMetadataComplete);
-    });
-}
-
-function checkMetadataComplete() {
-    const patientName = document.getElementById('patient-name').value;
-    const patientId = document.getElementById('patient-id').value;
-
-    if (patientName && patientId) {
-        document.getElementById('destination-section').style.display = 'block';
-        document.getElementById('preview-section').style.display = 'block';
-        updatePreview();
-    }
-}
-
-function updatePreview() {
-    const metadata = getMetadata();
-    const previewContent = document.getElementById('preview-content');
-
-    const displayDob = metadata.patient_birth_date
-        ? formatDateToAustralian(metadata.patient_birth_date)
-        : 'Not set';
-
-    previewContent.innerHTML = `
-        <h3>DICOM Metadata Preview</h3>
-        <dl>
-            <dt>Patient Name:</dt><dd>${metadata.patient_name}</dd>
-            <dt>Patient ID:</dt><dd>${metadata.patient_id}</dd>
-            <dt>Date of Birth:</dt><dd>${displayDob}</dd>
-            <dt>Sex:</dt><dd>${metadata.patient_sex || 'Not set'}</dd>
-            <dt>Study Description:</dt><dd>${metadata.study_description}</dd>
-            <dt>Series Description:</dt><dd>${metadata.series_description}</dd>
-            <dt>Accession Number:</dt><dd>${metadata.accession_number || 'Not set'}</dd>
-            <dt>Referring Physician:</dt><dd>${metadata.referring_physician || 'Not set'}</dd>
-        </dl>
-        ${selectedDestination ? `
-            <h3 style="margin-top: 1.5rem;">Selected Destination</h3>
-            <dl>
-                <dt>Name:</dt><dd>${selectedDestination.name}</dd>
-                <dt>AE Title:</dt><dd>${selectedDestination.ae_title}</dd>
-                <dt>Host:</dt><dd>${selectedDestination.host}:${selectedDestination.port}</dd>
-            </dl>
-        ` : ''}
-    `;
-}
-
-function getMetadata() {
-    return {
-        patient_name: document.getElementById('patient-name').value,
-        patient_id: document.getElementById('patient-id').value,
-        patient_birth_date: document.getElementById('patient-dob').value || null,
-        patient_sex: document.getElementById('patient-sex').value || null,
-        study_description: document.getElementById('study-description').value,
-        series_description: document.getElementById('series-description').value,
-        accession_number: document.getElementById('accession-number').value || null,
-        referring_physician: document.getElementById('referring-physician').value || null
-    };
+function removeFile() {
+    uploadedFileId = null;
+    document.getElementById('uploaded-files').style.display = 'none';
+    document.getElementById('files-list').innerHTML = '';
+    document.getElementById('file-input').value = '';
+    goToStep(2);
+    updateConvertButton();
 }
 
 // Destinations
+function setupDestinations() {
+    document.getElementById('manage-destinations-btn').addEventListener('click', () => {
+        document.getElementById('destinations-modal').classList.add('active');
+    });
+
+    document.getElementById('close-modal').addEventListener('click', () => {
+        document.getElementById('destinations-modal').classList.remove('active');
+    });
+
+    document.getElementById('destination-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await saveDestination();
+    });
+
+    document.getElementById('test-connection-btn').addEventListener('click', async () => {
+        await testConnection();
+    });
+}
+
 async function loadDestinations() {
     try {
         const response = await apiFetch('/api/destinations');
@@ -325,63 +490,44 @@ async function loadDestinations() {
         }
         const data = await response.json();
         destinations = data.destinations;
-        renderDestinations();
+        renderDestinationSelect();
         renderSavedDestinations();
     } catch (error) {
         console.error('Failed to load destinations:', error);
     }
 }
 
-function renderDestinations() {
-    const list = document.getElementById('destinations-list');
+function renderDestinationSelect() {
+    const select = document.getElementById('destination-select');
+
+    select.innerHTML = '<option value="">Select destination...</option>';
+
+    destinations.forEach(dest => {
+        const option = document.createElement('option');
+        option.value = dest.name;
+        option.textContent = `${dest.name} (${dest.ae_title} @ ${dest.host}:${dest.port})`;
+        select.appendChild(option);
+    });
+}
+
+function renderSavedDestinations() {
+    const container = document.getElementById('saved-destinations');
 
     if (destinations.length === 0) {
-        list.innerHTML = '<p style="color: #666;">No destinations configured. Click "Manage Destinations" to add one.</p>';
+        container.innerHTML = '<p style="color: var(--text-muted);">No saved destinations</p>';
         return;
     }
 
-    list.innerHTML = destinations.map(dest => `
-        <div class="destination-card" onclick="selectDestination('${dest.name}')">
-            <h3>${dest.name}</h3>
-            <p><strong>AE Title:</strong> ${dest.ae_title}</p>
-            <p><strong>Host:</strong> ${dest.host}:${dest.port}</p>
+    container.innerHTML = destinations.map(dest => `
+        <div class="saved-destination">
+            <div class="saved-destination-info">
+                <h4>${dest.name}</h4>
+                <p><strong>AE Title:</strong> ${dest.ae_title}</p>
+                <p><strong>Host:</strong> ${dest.host}:${dest.port}</p>
+            </div>
+            <button onclick="deleteDestination('${dest.name}')">Delete</button>
         </div>
     `).join('');
-}
-
-function selectDestination(name) {
-    selectedDestination = destinations.find(d => d.name === name);
-
-    // Update UI
-    document.querySelectorAll('.destination-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    event.currentTarget.classList.add('selected');
-
-    updatePreview();
-}
-
-function setupDestinations() {
-    // Manage Destinations button
-    document.getElementById('manage-destinations-btn').addEventListener('click', () => {
-        document.getElementById('destinations-modal').classList.add('active');
-    });
-
-    // Close modal
-    document.getElementById('close-modal').addEventListener('click', () => {
-        document.getElementById('destinations-modal').classList.remove('active');
-    });
-
-    // Destination form
-    document.getElementById('destination-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await saveDestination();
-    });
-
-    // Test connection
-    document.getElementById('test-connection-btn').addEventListener('click', async () => {
-        await testConnection();
-    });
 }
 
 async function saveDestination() {
@@ -406,10 +552,10 @@ async function saveDestination() {
 
         await loadDestinations();
         document.getElementById('destination-form').reset();
-        alert('Destination saved successfully!');
+        showNotification('Destination saved successfully!');
 
     } catch (error) {
-        alert('Failed to save destination: ' + error.message);
+        showError('Failed to save destination: ' + error.message);
     } finally {
         hideLoading();
     }
@@ -436,36 +582,16 @@ async function testConnection() {
         const data = await response.json();
 
         if (response.ok) {
-            alert('✓ ' + data.message);
+            showNotification('Connection successful!');
         } else {
-            alert('✗ Connection failed: ' + data.detail);
+            showError('Connection failed: ' + data.detail);
         }
 
     } catch (error) {
-        alert('✗ Connection failed: ' + error.message);
+        showError('Connection failed: ' + error.message);
     } finally {
         hideLoading();
     }
-}
-
-function renderSavedDestinations() {
-    const container = document.getElementById('saved-destinations');
-
-    if (destinations.length === 0) {
-        container.innerHTML = '<p style="color: #666;">No saved destinations</p>';
-        return;
-    }
-
-    container.innerHTML = destinations.map(dest => `
-        <div class="saved-destination">
-            <div class="saved-destination-info">
-                <h4>${dest.name}</h4>
-                <p><strong>AE Title:</strong> ${dest.ae_title}</p>
-                <p><strong>Host:</strong> ${dest.host}:${dest.port}</p>
-            </div>
-            <button onclick="deleteDestination('${dest.name}')">Delete</button>
-        </div>
-    `).join('');
 }
 
 async function deleteDestination(name) {
@@ -483,44 +609,54 @@ async function deleteDestination(name) {
         await loadDestinations();
 
     } catch (error) {
-        alert('Failed to delete destination: ' + error.message);
+        showError('Failed to delete destination: ' + error.message);
     } finally {
         hideLoading();
     }
 }
 
-// Convert
-function setupButtons() {
-    document.getElementById('convert-btn').addEventListener('click', convertToDicom);
-    document.getElementById('reset-btn').addEventListener('click', resetForm);
-    document.getElementById('new-conversion-btn').addEventListener('click', resetForm);
-    document.getElementById('view-archives-btn').addEventListener('click', viewArchives);
-    document.getElementById('close-archives-modal').addEventListener('click', () => {
-        document.getElementById('archives-modal').classList.remove('active');
-    });
+// Summary & Convert
+function updateSummary() {
+    document.getElementById('summary-patient').textContent = selectedPatient?.patient_name || '-';
+    document.getElementById('summary-patient-id').textContent = selectedPatient?.patient_id || '-';
+    document.getElementById('summary-accession').textContent = selectedPatient?.accession_number || '-';
+    document.getElementById('summary-study').textContent =
+        selectedPatient?.procedure_description || selectedPatient?.requested_procedure_description || 'Document Conversion';
+    document.getElementById('summary-files').textContent = uploadedFileId ? '1 file' : '0 files';
+    document.getElementById('summary-destination').textContent = selectedDestination?.name || 'Not selected';
 }
 
-async function convertToDicom() {
-    if (!uploadedFileId) {
-        alert('Please upload a file first');
+function updateConvertButton() {
+    const btn = document.getElementById('convert-send-btn');
+    btn.disabled = !selectedPatient || !uploadedFileId || !selectedDestination;
+}
+
+async function convertAndSend() {
+    if (!selectedPatient || !uploadedFileId || !selectedDestination) {
+        showError('Please complete all steps before converting');
         return;
     }
 
-    const sendImmediately = document.getElementById('send-immediately').checked;
-
-    if (sendImmediately && !selectedDestination) {
-        alert('Please select a destination or uncheck "Send immediately"');
-        return;
-    }
+    const metadata = {
+        patient_name: selectedPatient.patient_name,
+        patient_id: selectedPatient.patient_id,
+        patient_birth_date: selectedPatient.patient_birth_date || null,
+        patient_sex: selectedPatient.patient_sex || null,
+        study_description: selectedPatient.procedure_description || selectedPatient.requested_procedure_description || 'Document Conversion',
+        series_description: 'Imported Document',
+        accession_number: selectedPatient.accession_number || null,
+        referring_physician: selectedPatient.referring_physician || selectedPatient.scheduled_physician || null,
+        modality: selectedPatient.modality || 'OT'
+    };
 
     const request = {
         file_id: uploadedFileId,
-        metadata: getMetadata(),
+        metadata: metadata,
         destination: selectedDestination,
-        send_immediately: sendImmediately
+        send_immediately: true
     };
 
-    showLoading(sendImmediately ? 'Converting and sending...' : 'Converting to DICOM...');
+    showLoading('Converting and sending to PACS...');
 
     try {
         const response = await apiFetch('/api/convert', {
@@ -536,27 +672,23 @@ async function convertToDicom() {
         }
 
         // Show results
-        const resultsContent = document.getElementById('results-content');
-        resultsContent.innerHTML = `
-            <h3>✓ ${data.message}</h3>
-            <dl>
-                <dt>SOP Instance UID:</dt><dd>${data.sop_instance_uid}</dd>
-                <dt>Study Instance UID:</dt><dd>${data.study_instance_uid}</dd>
-                <dt>Series Instance UID:</dt><dd>${data.series_instance_uid}</dd>
-                <dt>Archive Path:</dt><dd>${data.dicom_file_path}</dd>
-            </dl>
-        `;
+        document.getElementById('results-message').textContent = data.message;
+        document.getElementById('result-sop-uid').textContent = data.sop_instance_uid;
+        document.getElementById('result-study-uid').textContent = data.study_instance_uid;
+        document.getElementById('result-series-uid').textContent = data.series_instance_uid;
 
-        // Hide previous sections and show results
+        // Hide other sections, show results
+        document.getElementById('patient-section').style.display = 'none';
         document.getElementById('upload-section').style.display = 'none';
-        document.getElementById('metadata-section').style.display = 'none';
-        document.getElementById('destination-section').style.display = 'none';
-        document.getElementById('preview-section').style.display = 'none';
+        document.getElementById('review-section').style.display = 'none';
         document.getElementById('results-section').style.display = 'block';
         document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
 
+        // Update step indicator to show all complete
+        updateStepIndicator(4);
+
     } catch (error) {
-        alert('Conversion failed: ' + error.message);
+        showError('Conversion failed: ' + error.message);
     } finally {
         hideLoading();
     }
@@ -565,17 +697,31 @@ async function convertToDicom() {
 function resetForm() {
     uploadedFileId = null;
     selectedDestination = null;
+    selectedPatient = null;
 
-    document.getElementById('upload-section').style.display = 'block';
-    document.getElementById('metadata-section').style.display = 'none';
-    document.getElementById('destination-section').style.display = 'none';
-    document.getElementById('preview-section').style.display = 'none';
+    // Reset UI
+    document.getElementById('patient-section').style.display = 'block';
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('review-section').style.display = 'none';
     document.getElementById('results-section').style.display = 'none';
 
-    document.getElementById('file-info').style.display = 'none';
-    document.getElementById('metadata-form').reset();
+    document.getElementById('selected-patient').style.display = 'none';
+    document.querySelector('.patient-toolbar').style.display = 'flex';
+    document.getElementById('uploaded-files').style.display = 'none';
+    document.getElementById('files-list').innerHTML = '';
     document.getElementById('file-input').value = '';
+    document.getElementById('destination-select').value = '';
+    document.getElementById('patient-search').value = '';
 
+    if (patients.length > 0) {
+        document.getElementById('patient-list').style.display = 'flex';
+        filteredPatients = [...patients];
+        renderPatientList();
+    } else {
+        document.getElementById('no-patients').style.display = 'flex';
+    }
+
+    goToStep(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -593,7 +739,7 @@ async function viewArchives() {
         const archivesList = document.getElementById('archives-list');
 
         if (data.archives.length === 0) {
-            archivesList.innerHTML = '<p style="color: #666;">No archived files</p>';
+            archivesList.innerHTML = '<p style="color: var(--text-muted);">No archived files</p>';
         } else {
             archivesList.innerHTML = data.archives.map(archive => {
                 const date = new Date(archive.created * 1000).toLocaleString('en-AU', {
@@ -610,7 +756,7 @@ async function viewArchives() {
                             <h4>${archive.filename}</h4>
                             <p>Size: ${(archive.size / 1024).toFixed(2)} KB | Created: ${date}</p>
                         </div>
-                        <a href="/api/archives/${archive.filename}" class="btn btn-secondary" download>Download</a>
+                        <a href="/api/archives/${archive.filename}" class="btn btn-outline" download>Download</a>
                     </div>
                 `;
             }).join('');
@@ -619,10 +765,46 @@ async function viewArchives() {
         document.getElementById('archives-modal').classList.add('active');
 
     } catch (error) {
-        alert('Failed to load archives: ' + error.message);
+        showError('Failed to load archives: ' + error.message);
     } finally {
         hideLoading();
     }
+}
+
+// Error handling
+function showError(message) {
+    const alertEl = document.getElementById('error-alert');
+    document.getElementById('error-message').textContent = message;
+    alertEl.style.display = 'flex';
+}
+
+function dismissError() {
+    document.getElementById('error-alert').style.display = 'none';
+}
+
+// Notifications
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 2000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Loading

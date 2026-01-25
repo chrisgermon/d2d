@@ -7,26 +7,190 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
+    <div class="app-container">
         <!-- Header -->
-        <header class="header">
-            <h1>Documents to DICOM</h1>
-            <p class="subtitle">Convert documents and images to DICOM format</p>
-            <div style="margin-top: 10px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <a href="/worklist" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">
-                    Query Worklist
-                </a>
-                <a href="/settings" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>Documents to DICOM (D2D)</h1>
+                    <p>Convert documents and images to DICOM format and send to PACS</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/settings" class="header-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
                     Settings
                 </a>
             </div>
         </header>
 
+        <!-- Step Indicator -->
+        <nav class="step-indicator">
+            <div class="step active" data-step="1">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <span class="step-label">Select Patient</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="2">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </div>
+                <span class="step-label">Upload Image</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" data-step="3">
+                <div class="step-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </div>
+                <span class="step-label">Review & Send</span>
+            </div>
+        </nav>
+
+        <!-- Error Alert -->
+        <div id="error-alert" class="alert alert-error" style="display: none;">
+            <div class="alert-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <span id="error-message"></span>
+            <button class="alert-dismiss" onclick="dismissError()">Dismiss</button>
+        </div>
+
         <!-- Main Content -->
-        <div class="content">
-            <!-- Step 1: File Upload -->
-            <section class="card" id="upload-section">
-                <h2>Step 1: Upload File</h2>
+        <main class="main-content">
+            <!-- Step 1: Select Patient -->
+            <section class="step-card" id="patient-section">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <h2>Step 1: Select Patient</h2>
+                </div>
+
+                <!-- Search/Filter Bar -->
+                <div class="patient-toolbar">
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" id="patient-search" placeholder="Search by name, ID, or accession...">
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-outline" id="refresh-patients-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <polyline points="1 20 1 14 7 14"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                            Refresh
+                        </button>
+                        <button class="btn btn-outline" id="create-patient-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Create Patient/Request
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Patient Loading State -->
+                <div id="patient-loading" class="loading-state">
+                    <div class="spinner-small"></div>
+                    <span>Loading scheduled patients from all sites...</span>
+                </div>
+
+                <!-- Patient List -->
+                <div id="patient-list" class="patient-list" style="display: none;">
+                    <!-- Patients will be populated here -->
+                </div>
+
+                <!-- No Patients State -->
+                <div id="no-patients" class="empty-state" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="8" y1="15" x2="16" y2="15"/>
+                        <line x1="9" y1="9" x2="9.01" y2="9"/>
+                        <line x1="15" y1="9" x2="15.01" y2="9"/>
+                    </svg>
+                    <p>No scheduled patients found</p>
+                    <button class="btn btn-primary" onclick="createPatient()">Create Patient/Request</button>
+                </div>
+
+                <!-- Selected Patient Display -->
+                <div id="selected-patient" class="selected-patient" style="display: none;">
+                    <div class="selected-patient-header">
+                        <h3>Selected Patient</h3>
+                        <button class="btn btn-text" onclick="clearSelectedPatient()">Change</button>
+                    </div>
+                    <div class="selected-patient-info">
+                        <div class="patient-avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="patient-details">
+                            <div class="patient-name" id="selected-patient-name"></div>
+                            <div class="patient-meta">
+                                <span id="selected-patient-id"></span>
+                                <span id="selected-patient-dob"></span>
+                                <span id="selected-patient-sex"></span>
+                            </div>
+                            <div class="patient-study" id="selected-patient-study"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Upload Files -->
+            <section class="step-card" id="upload-section" style="display: none;">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <h2>Step 2: Select File(s)</h2>
+                </div>
+
                 <div class="upload-area" id="upload-area">
                     <div class="upload-content">
                         <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -34,34 +198,171 @@
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p>Drag and drop a file here, or click to browse</p>
-                        <p class="file-types">Supported: PDF, JPG, PNG</p>
+                        <p class="upload-text">Drag and drop files here, or click to browse</p>
+                        <p class="upload-hint">Supported: PDF, JPG, PNG (max 50MB)</p>
                     </div>
-                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" hidden>
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" multiple hidden>
                 </div>
-                <div id="file-info" class="file-info" style="display: none;"></div>
+
+                <!-- Uploaded Files List -->
+                <div id="uploaded-files" class="uploaded-files" style="display: none;">
+                    <h3>Selected Files</h3>
+                    <div id="files-list"></div>
+                </div>
             </section>
 
-            <!-- Step 2: DICOM Metadata -->
-            <section class="card" id="metadata-section" style="display: none;">
-                <h2>Step 2: DICOM Metadata</h2>
-                <form id="metadata-form" class="metadata-form">
+            <!-- Step 3: Review & Send -->
+            <section class="step-card" id="review-section" style="display: none;">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </div>
+                    <h2>Step 3: Review & Send</h2>
+                </div>
+
+                <!-- DICOM Destination -->
+                <div class="form-section">
+                    <label class="form-label">DICOM Destination</label>
+                    <div class="destination-selector">
+                        <select id="destination-select" class="form-select">
+                            <option value="">Select destination...</option>
+                        </select>
+                        <button class="btn btn-outline" id="manage-destinations-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                            </svg>
+                            Manage
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="review-summary">
+                    <h3>Summary</h3>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <label>Patient</label>
+                            <span id="summary-patient"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>Patient ID</label>
+                            <span id="summary-patient-id"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>Accession</label>
+                            <span id="summary-accession"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>Study</label>
+                            <span id="summary-study"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>Files</label>
+                            <span id="summary-files"></span>
+                        </div>
+                        <div class="summary-item">
+                            <label>Destination</label>
+                            <span id="summary-destination"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Convert & Send Button -->
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="back-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        Back
+                    </button>
+                    <button class="btn btn-primary btn-large" id="convert-send-btn" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                        Convert & Send
+                    </button>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="step-card success-card" id="results-section" style="display: none;">
+                <div class="success-header">
+                    <div class="success-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                    </div>
+                    <h2>Success!</h2>
+                    <p id="results-message">DICOM file created and sent successfully</p>
+                </div>
+                <div class="results-details">
+                    <div class="result-item">
+                        <label>SOP Instance UID</label>
+                        <span id="result-sop-uid"></span>
+                    </div>
+                    <div class="result-item">
+                        <label>Study Instance UID</label>
+                        <span id="result-study-uid"></span>
+                    </div>
+                    <div class="result-item">
+                        <label>Series Instance UID</label>
+                        <span id="result-series-uid"></span>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="new-conversion-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        New Conversion
+                    </button>
+                    <button class="btn btn-outline" id="view-archives-btn">View Archives</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-info">
+                <span class="footer-label">Last deployment:</span>
+                <span id="deployment-info">Loading...</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Create Patient Modal -->
+    <div id="create-patient-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Create Patient/Request</h2>
+                <button class="modal-close" id="close-create-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-patient-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="patient-name">Patient Name *</label>
-                            <input type="text" id="patient-name" required placeholder="Lastname^Firstname">
+                            <label for="new-patient-name">Patient Name *</label>
+                            <input type="text" id="new-patient-name" required placeholder="Lastname^Firstname">
                         </div>
                         <div class="form-group">
-                            <label for="patient-id">Patient ID *</label>
-                            <input type="text" id="patient-id" required placeholder="MRN or Patient ID">
+                            <label for="new-patient-id">Patient ID *</label>
+                            <input type="text" id="new-patient-id" required placeholder="MRN or Patient ID">
                         </div>
                         <div class="form-group">
-                            <label for="patient-dob">Date of Birth</label>
-                            <input type="date" id="patient-dob">
+                            <label for="new-patient-dob">Date of Birth</label>
+                            <input type="date" id="new-patient-dob">
                         </div>
                         <div class="form-group">
-                            <label for="patient-sex">Sex</label>
-                            <select id="patient-sex">
+                            <label for="new-patient-sex">Sex</label>
+                            <select id="new-patient-sex">
                                 <option value="">Select...</option>
                                 <option value="M">Male</option>
                                 <option value="F">Female</option>
@@ -69,67 +370,33 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="study-description">Study Description</label>
-                            <input type="text" id="study-description" value="Document Conversion" placeholder="Study Description">
+                            <label for="new-accession">Accession Number</label>
+                            <input type="text" id="new-accession" placeholder="Accession Number">
                         </div>
                         <div class="form-group">
-                            <label for="series-description">Series Description</label>
-                            <input type="text" id="series-description" value="Imported Document" placeholder="Series Description">
+                            <label for="new-study-description">Study Description</label>
+                            <input type="text" id="new-study-description" value="Document Conversion" placeholder="Study Description">
                         </div>
                         <div class="form-group">
-                            <label for="accession-number">Accession Number</label>
-                            <input type="text" id="accession-number" placeholder="Accession Number">
+                            <label for="new-referring-physician">Referring Physician</label>
+                            <input type="text" id="new-referring-physician" placeholder="Dr. Smith">
                         </div>
                         <div class="form-group">
-                            <label for="referring-physician">Referring Physician</label>
-                            <input type="text" id="referring-physician" placeholder="Dr. Smith">
+                            <label for="new-modality">Modality</label>
+                            <select id="new-modality">
+                                <option value="OT">OT - Other</option>
+                                <option value="DOC">DOC - Document</option>
+                                <option value="SC">SC - Secondary Capture</option>
+                            </select>
                         </div>
                     </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreatePatientModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Use This Patient</button>
+                    </div>
                 </form>
-            </section>
-
-            <!-- Step 3: Destination Selection -->
-            <section class="card" id="destination-section" style="display: none;">
-                <div class="section-header">
-                    <h2>Step 3: DICOM Destination</h2>
-                    <button class="btn btn-secondary" id="manage-destinations-btn">Manage Destinations</button>
-                </div>
-                <div id="destinations-list" class="destinations-list"></div>
-                <div class="form-group" style="margin-top: 1rem;">
-                    <label>
-                        <input type="checkbox" id="send-immediately">
-                        Send immediately after conversion
-                    </label>
-                </div>
-            </section>
-
-            <!-- Step 4: Preview & Convert -->
-            <section class="card" id="preview-section" style="display: none;">
-                <h2>Step 4: Preview & Convert</h2>
-                <div id="preview-content" class="preview-content"></div>
-                <div class="button-group">
-                    <button class="btn btn-primary" id="convert-btn">Convert to DICOM</button>
-                    <button class="btn btn-secondary" id="reset-btn">Start Over</button>
-                </div>
-            </section>
-
-            <!-- Results -->
-            <section class="card" id="results-section" style="display: none;">
-                <h2>✓ Conversion Complete</h2>
-                <div id="results-content"></div>
-                <div class="button-group">
-                    <button class="btn btn-primary" id="new-conversion-btn">New Conversion</button>
-                    <button class="btn btn-secondary" id="view-archives-btn">View Archives</button>
-                </div>
-            </section>
-        </div>
-
-        <footer class="page-footer">
-            <div class="footer-info">
-                <span class="footer-label">Last deployment:</span>
-                <span id="deployment-info">Loading...</span>
             </div>
-        </footer>
+        </div>
     </div>
 
     <!-- Manage Destinations Modal -->
@@ -175,7 +442,7 @@
 
     <!-- Archives Modal -->
     <div id="archives-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-large">
             <div class="modal-header">
                 <h2>DICOM Archives</h2>
                 <button class="modal-close" id="close-archives-modal">&times;</button>
