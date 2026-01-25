@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # API Security Settings (can be overridden by environment variables)
     require_api_key: bool = Field(default=True, description="Whether API key authentication is required")
     api_keys: str = Field(default="vrg-api-key-2026-secure-change-me", description="Comma-separated list of valid API keys")
+    deployment_timestamp: str = Field(default="", description="Last deployment or code update timestamp")
 
     class Config:
         env_file = ".env"

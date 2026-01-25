@@ -513,7 +513,8 @@ async def get_settings():
         "archive_path": str(settings.archive_path),
         "upload_path": str(settings.upload_path),
         "host": settings.host,
-        "port": settings.port
+        "port": settings.port,
+        "deployment_timestamp": settings.deployment_timestamp
     }
 
 @app.get("/api/settings/security")
