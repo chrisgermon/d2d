@@ -472,7 +472,7 @@ async def query_all_worklists_endpoint(request: WorklistQueryAllRequest, api_key
         success, items, status_dict = await query_all_worklists(
             host=request.host,
             port=request.port,
-            ae_title=request.ae_title,
+            calling_ae=request.calling_ae,
             patient_name=request.patient_name,
             patient_id=request.patient_id,
             accession_number=request.accession_number,

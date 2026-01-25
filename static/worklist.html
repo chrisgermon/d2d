@@ -177,14 +177,9 @@
                             <label for="wl-port">Port</label>
                             <input type="number" id="wl-port" value="5010" readonly style="background-color: #f5f5f5;">
                         </div>
-                        <div class="form-group">
-                            <label for="wl-ae-title">Server AE Title</label>
-                            <input type="text" id="wl-ae-title" value="AURVCMOD1" readonly style="background-color: #f5f5f5;">
-                        </div>
                         <div class="form-group" style="grid-column: span 2;">
-                            <label for="wl-calling-ae">Site / Modality (Calling AE)</label>
-                            <select id="wl-calling-ae" style="width: 100%;">
-                                <option value="LIVUSWL">LIVUSWL - Lilydale Ultrasound</option>
+                            <label for="wl-server-ae">Server AE Title (Worklist)</label>
+                            <select id="wl-server-ae" style="width: 100%;">
                                 <optgroup label="Auburn">
                                     <option value="AUBCRWL">AUBCRWL - Auburn CR</option>
                                     <option value="AUBCTWL">AUBCTWL - Auburn CT</option>
@@ -511,6 +506,10 @@
                                 </optgroup>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="wl-calling-ae">Calling AE Title</label>
+                            <input type="text" id="wl-calling-ae" value="D2DSERVER" readonly style="background-color: #f5f5f5;">
+                        </div>
                     </div>
                     <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
                         Select the worklist server for the specific site and modality you want to query
@@ -671,6 +670,10 @@
             return aeTitle.substring(0, 3);
         }
 
+        function getSiteAe(item) {
+            return item.server_ae_title || item.calling_ae || '';
+        }
+
         // Query mode toggle
         function setQueryMode(mode) {
             currentQueryMode = mode;
@@ -721,7 +724,7 @@
             return {
                 host: document.getElementById('wl-host').value,
                 port: parseInt(document.getElementById('wl-port').value),
-                ae_title: document.getElementById('wl-ae-title').value,
+                ae_title: document.getElementById('wl-server-ae').value,
                 calling_ae: document.getElementById('wl-calling-ae').value
             };
         }
@@ -751,7 +754,8 @@
                 modality: modality || null,
                 host: document.getElementById('wl-host').value,
                 port: parseInt(document.getElementById('wl-port').value),
-                ae_title: document.getElementById('wl-ae-title').value
+                ae_title: document.getElementById('wl-server-ae').value,
+                calling_ae: document.getElementById('wl-calling-ae').value
             };
 
             const resultsContainer = document.getElementById('results-container');
@@ -841,7 +845,7 @@
                     filteredWorklistItems = [...allWorklistItems];
 
                     // Update results count
-                    resultsCount.textContent = `Found ${result.count} scheduled patients from ${config.calling_ae}`;
+                    resultsCount.textContent = `Found ${result.count} scheduled patients from ${config.ae_title}`;
                     resultsCount.style.display = 'block';
 
                     // Populate filter dropdowns
@@ -869,8 +873,8 @@
             // Get unique modalities
             const modalities = [...new Set(items.map(item => item.modality).filter(Boolean))].sort();
 
-            // Get unique sites (from calling_ae)
-            const sites = [...new Set(items.map(item => item.calling_ae).filter(Boolean))].sort();
+            // Get unique sites (from server AE title)
+            const sites = [...new Set(items.map(item => getSiteAe(item)).filter(Boolean))].sort();
 
             // Populate modality dropdown
             modalitySelect.innerHTML = '<option value="">All Modalities</option>';
@@ -910,7 +914,7 @@
                 }
 
                 // Site filter
-                if (siteFilter && item.calling_ae !== siteFilter) {
+                if (siteFilter && getSiteAe(item) !== siteFilter) {
                     return false;
                 }
 
@@ -946,8 +950,8 @@
                 return;
             }
 
-            // Check if we're showing calling_ae (all sites mode)
-            const showSite = currentQueryMode === 'all' || items.some(item => item.calling_ae);
+            // Check if we're showing site AE (all sites mode)
+            const showSite = currentQueryMode === 'all' || items.some(item => getSiteAe(item));
 
             let tableHTML = `
                 <table class="worklist-table">
@@ -971,7 +975,8 @@
                 const schedDate = formatDate(item.scheduled_date);
                 const schedTime = formatTime(item.scheduled_time);
                 const scheduledDateTime = schedDate + (schedTime ? ' ' + schedTime : '');
-                const siteCode = item.calling_ae ? getSiteFromAE(item.calling_ae) : '';
+                const siteValue = getSiteAe(item);
+                const siteCode = siteValue ? getSiteFromAE(siteValue) : '';
 
                 tableHTML += `
                     <tr onclick="selectWorklistItem(${index})" data-index="${index}">
@@ -980,7 +985,7 @@
                         <td>${dob}</td>
                         <td>${item.accession_number || ''}</td>
                         <td>${item.modality || ''}</td>
-                        ${showSite ? `<td title="${item.calling_ae || ''}">${siteCode}</td>` : ''}
+                        ${showSite ? `<td title="${siteValue}">${siteCode}</td>` : ''}
                         <td>${scheduledDateTime}</td>
                         <td>${item.procedure_description || item.requested_procedure_description || ''}</td>
                     </tr>
@@ -1018,7 +1023,8 @@
             const schedDate = formatDate(item.scheduled_date);
             const schedTime = formatTime(item.scheduled_time);
             const scheduledDateTime = schedDate ? schedDate + (schedTime ? ' ' + schedTime : '') : 'N/A';
-            const siteInfo = item.calling_ae ? `${getSiteFromAE(item.calling_ae)} (${item.calling_ae})` : 'N/A';
+            const siteValue = getSiteAe(item);
+            const siteInfo = siteValue ? `${getSiteFromAE(siteValue)} (${siteValue})` : 'N/A';
 
             selectedInfo.innerHTML = `
                 <h3>${item.patient_name}</h3>
