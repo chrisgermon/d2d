@@ -79,6 +79,9 @@ class WorklistQuery:
         self.ae_title = ae_title
         self.calling_ae = calling_ae
         self.ae = AE(ae_title=calling_ae)
+        self.ae.acse_timeout = 5  # Connection timeout in seconds
+        self.ae.dimse_timeout = 10  # Operation timeout in seconds
+        self.ae.network_timeout = 5  # Network timeout in seconds
         self.ae.add_requested_context(ModalityWorklistInformationFind)
 
     def query_worklist(
@@ -403,7 +406,7 @@ async def query_all_worklists(
     status_dict = {}
     successful_count = 0
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Create futures for all worklist AE Title queries
