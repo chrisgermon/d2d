@@ -299,10 +299,11 @@ def query_single_ae(
     Returns: (worklist_ae_title, success, items, message)
     """
     try:
+        ae_title = worklist_ae_title
         worklist = WorklistQuery(
             host=host,
             port=port,
-            ae_title=worklist_ae_title,
+            ae_title=ae_title,
             calling_ae=calling_ae
         )
         success, items, message = worklist.query_worklist(
@@ -313,9 +314,9 @@ def query_single_ae(
             modality=modality,
             station_ae_title=station_ae_title
         )
-        return (worklist_ae_title, success, items, message)
+        return (ae_title, success, items, message)
     except Exception as e:
-        return (worklist_ae_title, False, [], f"Error: {str(e)}")
+        return (ae_title, False, [], f"Error: {str(e)}")
 
 
 async def query_all_worklists(
