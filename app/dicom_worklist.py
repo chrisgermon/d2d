@@ -330,7 +330,7 @@ def query_single_ae(
     calling_ae: str,
     host: str,
     port: int,
-    ae_title: str,
+    worklist_ae_title: str,
     patient_name: Optional[str] = None,
     patient_id: Optional[str] = None,
     accession_number: Optional[str] = None,
@@ -339,14 +339,14 @@ def query_single_ae(
     station_ae_title: Optional[str] = None
 ) -> tuple[str, bool, List[Dict], str]:
     """
-    Query a single AE Title and return results.
-    Returns: (called_ae, success, items, message)
+    Query a single worklist AE Title and return results.
+    Returns: (worklist_ae_title, success, items, message)
     """
     try:
         worklist = WorklistQuery(
             host=host,
             port=port,
-            ae_title=ae_title,
+            ae_title=worklist_ae_title,
             calling_ae=calling_ae
         )
         success, items, message = worklist.query_worklist(
@@ -357,9 +357,9 @@ def query_single_ae(
             modality=modality,
             station_ae_title=station_ae_title
         )
-        return (ae_title, success, items, message)
+        return (worklist_ae_title, success, items, message)
     except Exception as e:
-        return (ae_title, False, [], f"Error: {str(e)}")
+        return (worklist_ae_title, False, [], f"Error: {str(e)}")
 
 
 async def query_all_worklists(
@@ -375,7 +375,7 @@ async def query_all_worklists(
     max_workers: int = 20
 ) -> tuple[bool, List[Dict], Dict[str, str]]:
     """
-    Query all AE Titles concurrently and return combined results.
+    Query all worklist AE Titles concurrently and return combined results.
 
     Args:
         host: Worklist server IP
@@ -386,7 +386,7 @@ async def query_all_worklists(
         accession_number: Accession number filter
         scheduled_date: Scheduled date filter
         modality: Modality filter
-        ae_titles: List of called AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
+        ae_titles: List of worklist AE Titles to query (defaults to ALL_WORKLIST_AE_TITLES)
         max_workers: Maximum concurrent queries
 
     Returns:
@@ -405,7 +405,7 @@ async def query_all_worklists(
     loop = asyncio.get_event_loop()
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Create futures for all AE Title queries
+        # Create futures for all worklist AE Title queries
         futures = [
             loop.run_in_executor(
                 executor,
@@ -413,7 +413,7 @@ async def query_all_worklists(
                 calling_ae,
                 host,
                 port,
-                called_ae,
+                worklist_ae_title,
                 patient_name,
                 patient_id,
                 accession_number,
@@ -421,7 +421,7 @@ async def query_all_worklists(
                 modality,
                 None
             )
-            for called_ae in ae_titles
+            for worklist_ae_title in ae_titles
         ]
 
         # Wait for all queries to complete
@@ -431,8 +431,8 @@ async def query_all_worklists(
             if isinstance(result, Exception):
                 continue
 
-            called_ae, success, items, message = result
-            status_dict[called_ae] = message
+            worklist_ae_title, success, items, message = result
+            status_dict[worklist_ae_title] = message
 
             if success:
                 successful_count += 1
