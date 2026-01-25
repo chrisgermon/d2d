@@ -32,13 +32,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware - configured for cross-origin API access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # API Key Authentication
@@ -89,6 +90,18 @@ def load_destinations() -> list:
 def save_destinations(destinations: list) -> None:
     """Save destinations to file with error handling"""
     destinations_file.write_text(json.dumps(destinations, indent=2))
+
+
+# Health check endpoint - no authentication required
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for connectivity testing - no auth required"""
+    return {
+        "status": "ok",
+        "service": "D2D API",
+        "version": "1.0.0"
+    }
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
