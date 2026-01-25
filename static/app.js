@@ -508,7 +508,7 @@ async function loadDestinations() {
         if (destinations.length === 0) {
             const defaultDest = {
                 name: 'VRG PACS',
-                ae_title: 'VRGPACS',
+                ae_title: 'AURVCMOD1',
                 host: '10.17.1.21',
                 port: 104,
                 calling_ae_title: 'D2D_SCU'
