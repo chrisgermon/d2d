@@ -6,6 +6,8 @@ from datetime import datetime, date
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
+from app.dicom_logger import dicom_logger
+
 
 # Complete list of all AE Titles for worklist queries
 ALL_WORKLIST_AE_TITLES = [
@@ -163,7 +165,21 @@ class WorklistQuery:
             )
 
             if not assoc.is_established:
-                return False, [], f"Failed to establish association with {self.ae_title}"
+                message = f"Failed to establish association with {self.ae_title}"
+                dicom_logger.log_worklist_query(
+                    success=False,
+                    message=message,
+                    host=self.host,
+                    port=self.port,
+                    ae_title=self.ae_title,
+                    calling_ae=self.calling_ae,
+                    patient_name=patient_name,
+                    patient_id=patient_id,
+                    accession_number=accession_number,
+                    modality=modality,
+                    results_count=0
+                )
+                return False, [], message
 
             # Send C-FIND request
             responses = assoc.send_c_find(query_ds, ModalityWorklistInformationFind)
@@ -178,10 +194,38 @@ class WorklistQuery:
 
             assoc.release()
 
-            return True, worklist_items, f"Found {len(worklist_items)} worklist item(s)"
+            message = f"Found {len(worklist_items)} worklist item(s)"
+            dicom_logger.log_worklist_query(
+                success=True,
+                message=message,
+                host=self.host,
+                port=self.port,
+                ae_title=self.ae_title,
+                calling_ae=self.calling_ae,
+                patient_name=patient_name,
+                patient_id=patient_id,
+                accession_number=accession_number,
+                modality=modality,
+                results_count=len(worklist_items)
+            )
+            return True, worklist_items, message
 
         except Exception as e:
-            return False, [], f"Worklist query failed: {str(e)}"
+            message = f"Worklist query failed: {str(e)}"
+            dicom_logger.log_worklist_query(
+                success=False,
+                message=message,
+                host=self.host,
+                port=self.port,
+                ae_title=self.ae_title,
+                calling_ae=self.calling_ae,
+                patient_name=patient_name,
+                patient_id=patient_id,
+                accession_number=accession_number,
+                modality=modality,
+                results_count=0
+            )
+            return False, [], message
 
     def _parse_worklist_item(self, dataset: Dataset) -> Optional[Dict]:
         """Parse DICOM worklist response into a dictionary"""
@@ -395,5 +439,17 @@ async def query_all_worklists(
 
     overall_success = successful_count > 0
     message = f"Queried {len(ae_titles)} AE Titles, {successful_count} successful, found {len(unique_items)} unique items"
+
+    # Log the query-all operation
+    dicom_logger.log_worklist_query_all(
+        success=overall_success,
+        message=message,
+        host=host,
+        port=port,
+        ae_title=ae_title,
+        ae_titles_queried=len(ae_titles),
+        successful_queries=successful_count,
+        results_count=len(unique_items)
+    )
 
     return overall_success, unique_items, {"_summary": message, **status_dict}
