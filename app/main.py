@@ -24,6 +24,7 @@ from app.models import (
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
 from app.dicom_worklist import WorklistQuery, query_all_worklists, ALL_WORKLIST_AE_TITLES
+from app.dicom_logger import dicom_logger, DicomOperationType
 
 app = FastAPI(
     title="Documents to DICOM (D2D)",
@@ -553,6 +554,110 @@ async def generate_api_key():
     """Generate a new random API key"""
     new_key = f"d2d-{secrets.token_urlsafe(32)}"
     return {"api_key": new_key}
+
+
+# DICOM Logs API endpoints
+@app.get("/api/dicom-logs")
+async def get_dicom_logs(
+    operation_type: Optional[str] = None,
+    success: Optional[bool] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get DICOM operation logs with optional filtering
+
+    Args:
+        operation_type: Filter by operation type (worklist_query, worklist_query_all, dicom_send, dicom_verify)
+        success: Filter by success status (true/false)
+        limit: Maximum number of logs to return (default 100)
+        offset: Number of logs to skip for pagination (default 0)
+    """
+    try:
+        # Convert operation_type string to enum if provided
+        op_type = None
+        if operation_type:
+            try:
+                op_type = DicomOperationType(operation_type)
+            except ValueError:
+                valid_types = [t.value for t in DicomOperationType]
+                return {
+                    "success": False,
+                    "error": f"Invalid operation_type. Valid values: {valid_types}"
+                }
+
+        logs, total_count = dicom_logger.get_logs(
+            operation_type=op_type,
+            success=success,
+            limit=limit,
+            offset=offset
+        )
+
+        return {
+            "success": True,
+            "logs": logs,
+            "count": len(logs),
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.delete("/api/dicom-logs")
+async def clear_dicom_logs():
+    """Clear all DICOM operation logs"""
+    try:
+        dicom_logger.clear_logs()
+        return {"success": True, "message": "All DICOM logs cleared"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/dicom-logs/stats")
+async def get_dicom_logs_stats():
+    """Get statistics about DICOM operation logs"""
+    try:
+        all_logs, total = dicom_logger.get_logs(limit=10000)
+
+        stats = {
+            "total_operations": total,
+            "by_type": {},
+            "by_status": {
+                "success": 0,
+                "failed": 0
+            },
+            "recent_failures": []
+        }
+
+        # Count by type
+        for op_type in DicomOperationType:
+            type_logs, type_count = dicom_logger.get_logs(operation_type=op_type, limit=10000)
+            success_count = sum(1 for l in type_logs if l.get("success"))
+            stats["by_type"][op_type.value] = {
+                "total": type_count,
+                "success": success_count,
+                "failed": type_count - success_count
+            }
+
+        # Count overall success/fail
+        for log in all_logs:
+            if log.get("success"):
+                stats["by_status"]["success"] += 1
+            else:
+                stats["by_status"]["failed"] += 1
+
+        # Get recent failures (last 10)
+        failed_logs, _ = dicom_logger.get_logs(success=False, limit=10)
+        stats["recent_failures"] = failed_logs
+
+        return {"success": True, "stats": stats}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

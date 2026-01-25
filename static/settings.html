@@ -214,6 +214,140 @@
             outline: none;
             border-color: #667eea;
         }
+        /* DICOM Logs Styles */
+        .logs-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .logs-controls select, .logs-controls button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 2px solid #e0e0e0;
+            font-size: 0.9rem;
+        }
+        .logs-controls select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .logs-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .stat-card.success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+        }
+        .stat-card.failed {
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+        }
+        .stat-card .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+        }
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .logs-table th, .logs-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .logs-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+        .logs-table tr:hover {
+            background: #f8f9fa;
+        }
+        .log-success {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .log-failed {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        .log-type {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .log-type.worklist_query {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .log-type.worklist_query_all {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .log-type.dicom_send {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .log-type.dicom_verify {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        .log-details {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .log-details:hover {
+            white-space: normal;
+            word-break: break-all;
+        }
+        .logs-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 0.5rem;
+        }
+        .logs-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding: 0.5rem 0;
+        }
+        .no-logs {
+            padding: 2rem;
+            text-align: center;
+            color: #666;
+        }
+        .log-timestamp {
+            font-size: 0.8rem;
+            color: #666;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -296,6 +430,87 @@
                 </div>
             </section>
 
+            <!-- DICOM Logs -->
+            <section class="card">
+                <div class="settings-section">
+                    <h3>DICOM Operation Logs</h3>
+                    <p class="description" style="margin-bottom: 1rem;">
+                        View logs for DICOM Send and Worklist Query operations to troubleshoot connectivity issues.
+                    </p>
+
+                    <!-- Stats -->
+                    <div class="logs-stats" id="logs-stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-total">-</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-value" id="stat-success">-</div>
+                            <div class="stat-label">Success</div>
+                        </div>
+                        <div class="stat-card failed">
+                            <div class="stat-value" id="stat-failed">-</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-sends">-</div>
+                            <div class="stat-label">Sends</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-worklist">-</div>
+                            <div class="stat-label">Worklist</div>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="logs-controls">
+                        <select id="log-type-filter">
+                            <option value="">All Operations</option>
+                            <option value="dicom_send">DICOM Send</option>
+                            <option value="dicom_verify">DICOM Verify</option>
+                            <option value="worklist_query">Worklist Query</option>
+                            <option value="worklist_query_all">Worklist Query All</option>
+                        </select>
+                        <select id="log-status-filter">
+                            <option value="">All Status</option>
+                            <option value="true">Success Only</option>
+                            <option value="false">Failed Only</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadLogs()">Refresh</button>
+                        <button class="btn btn-danger" onclick="clearLogs()" style="margin-left: auto;">Clear All Logs</button>
+                    </div>
+
+                    <!-- Logs Table -->
+                    <div class="logs-container">
+                        <table class="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Message</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-tbody">
+                                <tr>
+                                    <td colspan="5" class="no-logs">Loading logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="logs-pagination">
+                        <span id="logs-info">Showing 0 of 0 logs</span>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary" id="prev-page" onclick="prevPage()" disabled>Previous</button>
+                            <button class="btn btn-secondary" id="next-page" onclick="nextPage()" disabled>Next</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Navigation Links -->
             <section class="card">
                 <div class="settings-section">
@@ -319,12 +534,17 @@
     <script>
         // State
         let apiKeys = [];
+        let logsOffset = 0;
+        const logsLimit = 50;
+        let totalLogs = 0;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             loadSecuritySettings();
             setupEventListeners();
+            loadLogStats();
+            loadLogs();
         });
 
         function setupEventListeners() {
@@ -552,6 +772,174 @@
         function hideLoading() {
             document.getElementById('loading-overlay').style.display = 'none';
         }
+
+        // DICOM Logs Functions
+        async function loadLogStats() {
+            try {
+                const response = await fetch('/api/dicom-logs/stats');
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.stats;
+                    document.getElementById('stat-total').textContent = stats.total_operations;
+                    document.getElementById('stat-success').textContent = stats.by_status.success;
+                    document.getElementById('stat-failed').textContent = stats.by_status.failed;
+
+                    const sendStats = stats.by_type.dicom_send || { total: 0 };
+                    const verifyStats = stats.by_type.dicom_verify || { total: 0 };
+                    document.getElementById('stat-sends').textContent = sendStats.total + verifyStats.total;
+
+                    const worklistStats = stats.by_type.worklist_query || { total: 0 };
+                    const worklistAllStats = stats.by_type.worklist_query_all || { total: 0 };
+                    document.getElementById('stat-worklist').textContent = worklistStats.total + worklistAllStats.total;
+                }
+            } catch (error) {
+                console.error('Failed to load log stats:', error);
+            }
+        }
+
+        async function loadLogs() {
+            const typeFilter = document.getElementById('log-type-filter').value;
+            const statusFilter = document.getElementById('log-status-filter').value;
+
+            let url = `/api/dicom-logs?limit=${logsLimit}&offset=${logsOffset}`;
+            if (typeFilter) url += `&operation_type=${typeFilter}`;
+            if (statusFilter) url += `&success=${statusFilter}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    totalLogs = data.total_count;
+                    renderLogs(data.logs);
+                    updatePagination();
+                } else {
+                    document.getElementById('logs-tbody').innerHTML =
+                        '<tr><td colspan="5" class="no-logs">Failed to load logs: ' + (data.error || 'Unknown error') + '</td></tr>';
+                }
+            } catch (error) {
+                console.error('Failed to load logs:', error);
+                document.getElementById('logs-tbody').innerHTML =
+                    '<tr><td colspan="5" class="no-logs">Failed to load logs</td></tr>';
+            }
+        }
+
+        function renderLogs(logs) {
+            const tbody = document.getElementById('logs-tbody');
+
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-logs">No logs found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => {
+                const timestamp = new Date(log.timestamp).toLocaleString();
+                const statusClass = log.success ? 'log-success' : 'log-failed';
+                const statusText = log.success ? 'Success' : 'Failed';
+                const details = formatLogDetails(log);
+
+                return `
+                    <tr>
+                        <td class="log-timestamp">${timestamp}</td>
+                        <td><span class="log-type ${log.operation}">${formatOperationType(log.operation)}</span></td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${escapeHtml(log.message)}</td>
+                        <td class="log-details" title="${escapeHtml(details)}">${escapeHtml(details)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function formatOperationType(type) {
+            const types = {
+                'worklist_query': 'Query',
+                'worklist_query_all': 'Query All',
+                'dicom_send': 'Send',
+                'dicom_verify': 'Verify'
+            };
+            return types[type] || type;
+        }
+
+        function formatLogDetails(log) {
+            const d = log.details || {};
+            let parts = [];
+
+            if (d.destination) {
+                parts.push(`${d.destination.name} (${d.destination.host}:${d.destination.port})`);
+            } else if (d.host) {
+                parts.push(`${d.host}:${d.port}`);
+            }
+
+            if (d.patient_id) parts.push(`Patient: ${d.patient_id}`);
+            if (d.patient_name) parts.push(`Name: ${d.patient_name}`);
+            if (d.accession_number) parts.push(`Acc#: ${d.accession_number}`);
+            if (d.ae_title) parts.push(`AE: ${d.ae_title}`);
+            if (d.calling_ae) parts.push(`Calling: ${d.calling_ae}`);
+            if (d.results_count !== undefined) parts.push(`Results: ${d.results_count}`);
+            if (d.ae_titles_queried) parts.push(`AEs queried: ${d.ae_titles_queried}`);
+
+            return parts.join(' | ') || '-';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updatePagination() {
+            const showing = Math.min(logsOffset + logsLimit, totalLogs);
+            const start = totalLogs > 0 ? logsOffset + 1 : 0;
+            document.getElementById('logs-info').textContent = `Showing ${start}-${showing} of ${totalLogs} logs`;
+
+            document.getElementById('prev-page').disabled = logsOffset === 0;
+            document.getElementById('next-page').disabled = logsOffset + logsLimit >= totalLogs;
+        }
+
+        function prevPage() {
+            logsOffset = Math.max(0, logsOffset - logsLimit);
+            loadLogs();
+        }
+
+        function nextPage() {
+            logsOffset += logsLimit;
+            loadLogs();
+        }
+
+        async function clearLogs() {
+            if (!confirm('Are you sure you want to clear all DICOM logs? This cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/dicom-logs', { method: 'DELETE' });
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('All logs cleared');
+                    logsOffset = 0;
+                    loadLogs();
+                    loadLogStats();
+                } else {
+                    alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to clear logs: ' + error.message);
+            }
+        }
+
+        // Add filter change handlers
+        document.getElementById('log-type-filter').addEventListener('change', () => {
+            logsOffset = 0;
+            loadLogs();
+        });
+
+        document.getElementById('log-status-filter').addEventListener('change', () => {
+            logsOffset = 0;
+            loadLogs();
+        });
     </script>
 </body>
 </html>
