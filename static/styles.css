@@ -552,6 +552,11 @@ body {
     background: var(--primary-light);
 }
 
+.upload-content {
+    display: block;
+    cursor: pointer;
+}
+
 .upload-icon {
     width: 48px;
     height: 48px;
