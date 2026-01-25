@@ -557,6 +557,12 @@ body {
     cursor: pointer;
 }
 
+#file-input {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+}
+
 .upload-icon {
     width: 48px;
     height: 48px;
