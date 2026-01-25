@@ -377,7 +377,12 @@ function setupUploadArea() {
     const uploadArea = document.getElementById('upload-area');
     const fileInput = document.getElementById('file-input');
 
-    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('click', (e) => {
+        // Prevent infinite loop - don't trigger if clicking on the file input itself
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
 
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
