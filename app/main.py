@@ -43,12 +43,14 @@ app.add_middleware(
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-# Load API keys from environment or use default (CHANGE IN PRODUCTION!)
-VALID_API_KEYS = os.getenv("D2D_API_KEYS", "vrg-api-key-2026-secure-change-me").split(",")
+async def verify_api_key(api_key: str = Depends(api_key_header)) -> Optional[str]:
+    """Verify API key for protected endpoints (if API key requirement is enabled)"""
+    # Check if API key requirement is disabled
+    if not settings.require_api_key:
+        return None  # Allow access without API key
 
-async def verify_api_key(api_key: str = Depends(api_key_header)) -> str:
-    """Verify API key for protected endpoints"""
-    if api_key is None or api_key not in VALID_API_KEYS:
+    valid_keys = settings.get_api_keys_list()
+    if api_key is None or api_key not in valid_keys:
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing API key. Include 'X-API-Key' header.",
@@ -91,6 +93,14 @@ async def worklist():
     if html_file.exists():
         return FileResponse(html_file)
     return HTMLResponse("<h1>Modality Worklist</h1><p>Worklist page not found</p>")
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page():
+    """Serve the settings configuration page"""
+    html_file = Path("static/settings.html")
+    if html_file.exists():
+        return FileResponse(html_file)
+    return HTMLResponse("<h1>Settings</h1><p>Settings page not found</p>")
 
 @app.get("/api/network-info")
 async def network_info():
@@ -434,6 +444,58 @@ async def test_worklist_connection(config: WorklistConfig, api_key: str = Depend
 async def get_worklist_config(api_key: str = Depends(verify_api_key)):
     """Get default worklist configuration"""
     return WorklistConfig().model_dump()
+
+# Settings API endpoints
+@app.get("/api/settings")
+async def get_settings():
+    """Get current application settings (public - no auth required)"""
+    return {
+        "require_api_key": settings.require_api_key,
+        "api_keys_count": len(settings.get_api_keys_list()),
+        "max_file_size": settings.max_file_size,
+        "archive_path": str(settings.archive_path),
+        "upload_path": str(settings.upload_path),
+        "host": settings.host,
+        "port": settings.port
+    }
+
+@app.get("/api/settings/security")
+async def get_security_settings():
+    """Get security settings including API keys (public for configuration)"""
+    return {
+        "require_api_key": settings.require_api_key,
+        "api_keys": settings.api_keys
+    }
+
+@app.post("/api/settings/security")
+async def update_security_settings(
+    require_api_key: bool = Form(...),
+    api_keys: str = Form(...)
+):
+    """Update security settings"""
+    # Validate that at least one API key is provided if requiring API keys
+    keys_list = [k.strip() for k in api_keys.split(",") if k.strip()]
+    if require_api_key and len(keys_list) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one API key is required when API key authentication is enabled"
+        )
+
+    # Save settings
+    settings.save_runtime_settings(require_api_key=require_api_key, api_keys=api_keys)
+
+    return {
+        "success": True,
+        "message": "Security settings updated successfully",
+        "require_api_key": settings.require_api_key,
+        "api_keys_count": len(settings.get_api_keys_list())
+    }
+
+@app.post("/api/settings/api-key/generate")
+async def generate_api_key():
+    """Generate a new random API key"""
+    new_key = f"d2d-{secrets.token_urlsafe(32)}"
+    return {"api_key": new_key}
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

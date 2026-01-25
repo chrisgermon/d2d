@@ -3,6 +3,69 @@
 let uploadedFileId = null;
 let selectedDestination = null;
 let destinations = [];
+let apiKeyRequired = false;
+
+// API Key Management
+function getStoredApiKey() {
+    return localStorage.getItem('d2d_api_key') || '';
+}
+
+function setStoredApiKey(key) {
+    localStorage.setItem('d2d_api_key', key);
+}
+
+function clearStoredApiKey() {
+    localStorage.removeItem('d2d_api_key');
+}
+
+// Wrapper for fetch that handles API key authentication
+async function apiFetch(url, options = {}) {
+    const apiKey = getStoredApiKey();
+
+    // Merge headers
+    const headers = options.headers || {};
+    if (apiKey) {
+        headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(url, {
+        ...options,
+        headers
+    });
+
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+        const shouldPrompt = confirm(
+            'API authentication required. Would you like to enter an API key?\n\n' +
+            'Click OK to enter a key, or Cancel to go to Settings.'
+        );
+
+        if (shouldPrompt) {
+            const newKey = prompt('Enter your API key:');
+            if (newKey) {
+                setStoredApiKey(newKey);
+                // Retry the request with the new key
+                headers['X-API-Key'] = newKey;
+                return fetch(url, { ...options, headers });
+            }
+        } else {
+            window.location.href = '/settings';
+        }
+    }
+
+    return response;
+}
+
+// Check API security settings on page load
+async function checkApiSecurity() {
+    try {
+        const response = await fetch('/api/settings');
+        const data = await response.json();
+        apiKeyRequired = data.require_api_key;
+    } catch (error) {
+        console.error('Failed to check API security:', error);
+    }
+}
 
 // Format date from YYYY-MM-DD to DD/MM/YYYY (Australian format)
 function formatDateToAustralian(dateStr) {
@@ -16,6 +79,7 @@ function formatDateToAustralian(dateStr) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    checkApiSecurity();
     setupUploadArea();
     setupMetadataForm();
     setupDestinations();
@@ -145,7 +209,7 @@ async function handleFileUpload(file) {
     formData.append('file', file);
 
     try {
-        const response = await fetch('/api/upload', {
+        const response = await apiFetch('/api/upload', {
             method: 'POST',
             body: formData
         });
@@ -245,7 +309,11 @@ function getMetadata() {
 // Destinations
 async function loadDestinations() {
     try {
-        const response = await fetch('/api/destinations');
+        const response = await apiFetch('/api/destinations');
+        if (!response.ok) {
+            console.error('Failed to load destinations');
+            return;
+        }
         const data = await response.json();
         destinations = data.destinations;
         renderDestinations();
@@ -319,7 +387,7 @@ async function saveDestination() {
     showLoading('Saving destination...');
 
     try {
-        const response = await fetch('/api/destinations', {
+        const response = await apiFetch('/api/destinations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(destination)
@@ -350,7 +418,7 @@ async function testConnection() {
     showLoading('Testing connection...');
 
     try {
-        const response = await fetch('/api/destinations/verify', {
+        const response = await apiFetch('/api/destinations/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(destination)
@@ -397,7 +465,7 @@ async function deleteDestination(name) {
     showLoading('Deleting destination...');
 
     try {
-        const response = await fetch(`/api/destinations/${encodeURIComponent(name)}`, {
+        const response = await apiFetch(`/api/destinations/${encodeURIComponent(name)}`, {
             method: 'DELETE'
         });
 
@@ -446,7 +514,7 @@ async function convertToDicom() {
     showLoading(sendImmediately ? 'Converting and sending...' : 'Converting to DICOM...');
 
     try {
-        const response = await fetch('/api/convert', {
+        const response = await apiFetch('/api/convert', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
@@ -507,7 +575,10 @@ async function viewArchives() {
     showLoading('Loading archives...');
 
     try {
-        const response = await fetch('/api/archives');
+        const response = await apiFetch('/api/archives');
+        if (!response.ok) {
+            throw new Error('Failed to load archives');
+        }
         const data = await response.json();
 
         const archivesList = document.getElementById('archives-list');

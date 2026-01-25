@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D2D - Settings</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .settings-section {
+            margin-bottom: 2rem;
+        }
+        .settings-section h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #667eea;
+        }
+        .setting-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .setting-item label {
+            font-weight: 500;
+            color: #333;
+        }
+        .setting-item .description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+        .api-keys-container {
+            margin-top: 1rem;
+        }
+        .api-key-input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .api-key-input-group input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-family: monospace;
+        }
+        .api-key-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .api-keys-list {
+            margin-top: 1rem;
+        }
+        .api-key-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: #f0f2ff;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #667eea;
+        }
+        .api-key-item code {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #333;
+            word-break: break-all;
+        }
+        .api-key-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            transition: background 0.2s;
+        }
+        .btn-icon:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .info-box.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        .info-box p {
+            margin: 0;
+            color: #333;
+        }
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            text-decoration: none;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+        .nav-back:hover {
+            opacity: 1;
+        }
+        .read-only-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .info-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .info-card .label {
+            font-size: 0.8rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-card .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-top: 0.25rem;
+            word-break: break-all;
+        }
+        textarea.api-keys-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-family: monospace;
+            resize: vertical;
+        }
+        textarea.api-keys-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <a href="/" class="nav-back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Back to D2D
+            </a>
+            <h1>Settings</h1>
+            <p class="subtitle">Configure D2D application settings</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Security Settings -->
+            <section class="card">
+                <div class="settings-section">
+                    <h3>API Security</h3>
+
+                    <div class="info-box" id="security-status-box">
+                        <p>Loading security status...</p>
+                    </div>
+
+                    <div class="setting-item">
+                        <div>
+                            <label>Require API Key</label>
+                            <p class="description">When enabled, all API endpoints require an X-API-Key header</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="require-api-key">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="api-keys-container" id="api-keys-container">
+                        <label style="font-weight: 500; margin-bottom: 0.5rem; display: block;">API Keys</label>
+                        <p class="description" style="margin-bottom: 0.75rem;">
+                            Enter API keys (comma-separated). These keys will be accepted for authentication.
+                        </p>
+
+                        <div class="api-key-input-group">
+                            <input type="text" id="new-api-key" placeholder="Enter or generate an API key">
+                            <button class="btn btn-secondary" id="generate-key-btn" title="Generate Key">
+                                Generate
+                            </button>
+                            <button class="btn btn-primary" id="add-key-btn">Add</button>
+                        </div>
+
+                        <div class="api-keys-list" id="api-keys-list">
+                            <!-- API keys will be rendered here -->
+                        </div>
+
+                        <div style="margin-top: 1rem;">
+                            <label style="font-weight: 500; margin-bottom: 0.5rem; display: block;">All API Keys (comma-separated)</label>
+                            <textarea class="api-keys-textarea" id="api-keys-raw" placeholder="key1, key2, key3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="button-group" style="margin-top: 1.5rem;">
+                        <button class="btn btn-primary" id="save-security-btn">Save Security Settings</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Application Info (Read-only) -->
+            <section class="card">
+                <div class="settings-section">
+                    <h3>Application Information</h3>
+                    <p class="description" style="margin-bottom: 1rem;">
+                        These settings are configured via environment variables and cannot be changed at runtime.
+                    </p>
+
+                    <div class="read-only-info" id="app-info">
+                        <!-- App info will be rendered here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Navigation Links -->
+            <section class="card">
+                <div class="settings-section">
+                    <h3>Quick Links</h3>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <a href="/" class="btn btn-secondary" style="text-decoration: none;">D2D Home</a>
+                        <a href="/worklist" class="btn btn-secondary" style="text-decoration: none;">Worklist Query</a>
+                        <a href="/diagnostics" class="btn btn-secondary" style="text-decoration: none;">Network Diagnostics</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loading-message">Loading...</p>
+    </div>
+
+    <script>
+        // State
+        let apiKeys = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            loadSecuritySettings();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('generate-key-btn').addEventListener('click', generateApiKey);
+            document.getElementById('add-key-btn').addEventListener('click', addApiKey);
+            document.getElementById('save-security-btn').addEventListener('click', saveSecuritySettings);
+            document.getElementById('require-api-key').addEventListener('change', updateSecurityStatusBox);
+
+            // Sync textarea with list
+            document.getElementById('api-keys-raw').addEventListener('input', (e) => {
+                apiKeys = e.target.value.split(',').map(k => k.trim()).filter(k => k);
+                renderApiKeysList();
+            });
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+
+                const appInfo = document.getElementById('app-info');
+                appInfo.innerHTML = `
+                    <div class="info-card">
+                        <div class="label">Host</div>
+                        <div class="value">${data.host}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Port</div>
+                        <div class="value">${data.port}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Max File Size</div>
+                        <div class="value">${(data.max_file_size / 1000000).toFixed(0)} MB</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Archive Path</div>
+                        <div class="value">${data.archive_path}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Upload Path</div>
+                        <div class="value">${data.upload_path}</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        async function loadSecuritySettings() {
+            try {
+                const response = await fetch('/api/settings/security');
+                const data = await response.json();
+
+                document.getElementById('require-api-key').checked = data.require_api_key;
+                apiKeys = data.api_keys.split(',').map(k => k.trim()).filter(k => k);
+
+                document.getElementById('api-keys-raw').value = apiKeys.join(', ');
+                renderApiKeysList();
+                updateSecurityStatusBox();
+            } catch (error) {
+                console.error('Failed to load security settings:', error);
+            }
+        }
+
+        function updateSecurityStatusBox() {
+            const requireApiKey = document.getElementById('require-api-key').checked;
+            const statusBox = document.getElementById('security-status-box');
+
+            if (requireApiKey) {
+                statusBox.className = 'info-box';
+                statusBox.innerHTML = `
+                    <p><strong>API Authentication:</strong> <span class="status-badge status-enabled">Enabled</span></p>
+                    <p style="margin-top: 0.5rem;">All API endpoints require a valid X-API-Key header.</p>
+                `;
+            } else {
+                statusBox.className = 'info-box warning';
+                statusBox.innerHTML = `
+                    <p><strong>API Authentication:</strong> <span class="status-badge status-disabled">Disabled</span></p>
+                    <p style="margin-top: 0.5rem;">Warning: All API endpoints are publicly accessible without authentication.</p>
+                `;
+            }
+        }
+
+        function renderApiKeysList() {
+            const list = document.getElementById('api-keys-list');
+
+            if (apiKeys.length === 0) {
+                list.innerHTML = '<p style="color: #666; padding: 0.5rem 0;">No API keys configured</p>';
+                return;
+            }
+
+            list.innerHTML = apiKeys.map((key, index) => `
+                <div class="api-key-item">
+                    <code>${maskApiKey(key)}</code>
+                    <div class="api-key-actions">
+                        <button class="btn-icon" onclick="copyApiKey(${index})" title="Copy">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                        </button>
+                        <button class="btn-icon" onclick="removeApiKey(${index})" title="Remove">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4444" stroke-width="2">
+                                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function maskApiKey(key) {
+            if (key.length <= 12) {
+                return key.substring(0, 4) + '****' + key.substring(key.length - 4);
+            }
+            return key.substring(0, 8) + '****' + key.substring(key.length - 8);
+        }
+
+        async function generateApiKey() {
+            try {
+                const response = await fetch('/api/settings/api-key/generate', { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('new-api-key').value = data.api_key;
+            } catch (error) {
+                alert('Failed to generate API key: ' + error.message);
+            }
+        }
+
+        function addApiKey() {
+            const input = document.getElementById('new-api-key');
+            const key = input.value.trim();
+
+            if (!key) {
+                alert('Please enter or generate an API key');
+                return;
+            }
+
+            if (apiKeys.includes(key)) {
+                alert('This API key already exists');
+                return;
+            }
+
+            apiKeys.push(key);
+            input.value = '';
+
+            document.getElementById('api-keys-raw').value = apiKeys.join(', ');
+            renderApiKeysList();
+        }
+
+        function removeApiKey(index) {
+            if (!confirm('Remove this API key?')) return;
+
+            apiKeys.splice(index, 1);
+            document.getElementById('api-keys-raw').value = apiKeys.join(', ');
+            renderApiKeysList();
+        }
+
+        function copyApiKey(index) {
+            navigator.clipboard.writeText(apiKeys[index]).then(() => {
+                showNotification('API key copied to clipboard');
+            }).catch(() => {
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        async function saveSecuritySettings() {
+            const requireApiKey = document.getElementById('require-api-key').checked;
+            const apiKeysStr = apiKeys.join(',');
+
+            if (requireApiKey && apiKeys.length === 0) {
+                alert('At least one API key is required when authentication is enabled');
+                return;
+            }
+
+            showLoading('Saving settings...');
+
+            try {
+                const formData = new FormData();
+                formData.append('require_api_key', requireApiKey);
+                formData.append('api_keys', apiKeysStr);
+
+                const response = await fetch('/api/settings/security', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to save settings');
+                }
+
+                showNotification('Security settings saved successfully');
+                updateSecurityStatusBox();
+            } catch (error) {
+                alert('Failed to save settings: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                z-index: 1000;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        function showLoading(message) {
+            document.getElementById('loading-message').textContent = message;
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
