@@ -55,3 +55,15 @@ class WorklistQueryRequest(BaseModel):
     scheduled_date: Optional[date] = None
     modality: Optional[str] = None
     config: Optional[WorklistConfig] = WorklistConfig()
+
+
+class WorklistQueryAllRequest(BaseModel):
+    """Request to query all modality worklists"""
+    patient_name: Optional[str] = None
+    patient_id: Optional[str] = None
+    accession_number: Optional[str] = None
+    scheduled_date: Optional[date] = None
+    modality: Optional[str] = None
+    host: str = "10.17.1.21"
+    port: int = 5010
+    ae_title: str = "AURVCMOD1"

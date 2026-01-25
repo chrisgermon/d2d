@@ -18,11 +18,12 @@ from app.models import (
     ConversionRequest,
     ConversionResponse,
     WorklistConfig,
-    WorklistQueryRequest
+    WorklistQueryRequest,
+    WorklistQueryAllRequest
 )
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
-from app.dicom_worklist import WorklistQuery
+from app.dicom_worklist import WorklistQuery, query_all_worklists, ALL_WORKLIST_AE_TITLES
 
 app = FastAPI(
     title="Documents to DICOM (D2D)",
@@ -444,6 +445,45 @@ async def test_worklist_connection(config: WorklistConfig, api_key: str = Depend
 async def get_worklist_config(api_key: str = Depends(verify_api_key)):
     """Get default worklist configuration"""
     return WorklistConfig().model_dump()
+
+
+@app.post("/api/worklist/query-all")
+async def query_all_worklists_endpoint(request: WorklistQueryAllRequest, api_key: str = Depends(verify_api_key)):
+    """Query all modality worklists for scheduled studies across all AE Titles"""
+    try:
+        success, items, status_dict = await query_all_worklists(
+            host=request.host,
+            port=request.port,
+            ae_title=request.ae_title,
+            patient_name=request.patient_name,
+            patient_id=request.patient_id,
+            accession_number=request.accession_number,
+            scheduled_date=request.scheduled_date,
+            modality=request.modality
+        )
+
+        summary = status_dict.pop("_summary", "Query completed")
+
+        return {
+            "success": success,
+            "items": items,
+            "count": len(items),
+            "message": summary,
+            "ae_title_count": len(ALL_WORKLIST_AE_TITLES)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/worklist/ae-titles")
+async def get_worklist_ae_titles(api_key: str = Depends(verify_api_key)):
+    """Get list of all available AE Titles for worklist queries"""
+    return {
+        "ae_titles": ALL_WORKLIST_AE_TITLES,
+        "count": len(ALL_WORKLIST_AE_TITLES)
+    }
+
 
 # Settings API endpoints
 @app.get("/api/settings")
