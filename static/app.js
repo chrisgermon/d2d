@@ -153,7 +153,7 @@ async function loadPatients() {
         }
 
         const data = await response.json();
-        patients = data.results || [];
+        patients = data.items || [];
         filteredPatients = [...patients];
 
         loadingEl.style.display = 'none';
