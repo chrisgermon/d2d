@@ -202,7 +202,7 @@ function renderPatientList() {
                 ${patient.procedure_description || patient.requested_procedure_description ?
                     `<div class="patient-item-study">${patient.procedure_description || patient.requested_procedure_description}</div>` : ''}
             </div>
-            ${patient.server_ae_title ? `<span class="patient-item-site">${patient.server_ae_title}</span>` : ''}
+            ${patient.worklist_ae_title || patient.server_ae_title ? `<span class="patient-item-worklist">${patient.worklist_ae_title || patient.server_ae_title}</span>` : ''}
         </div>
     `).join('');
 }
@@ -223,6 +223,14 @@ function selectPatient(index) {
     document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
     document.getElementById('selected-patient-study').textContent =
         selectedPatient.procedure_description || selectedPatient.requested_procedure_description || 'Document Conversion';
+
+    // Show worklist AE title if available
+    const worklistEl = document.getElementById('selected-patient-worklist');
+    const worklistAeTitle = selectedPatient.worklist_ae_title || selectedPatient.server_ae_title;
+    if (worklistEl) {
+        worklistEl.textContent = worklistAeTitle ? `Worklist: ${worklistAeTitle}` : '';
+        worklistEl.style.display = worklistAeTitle ? 'inline-block' : 'none';
+    }
 
     // Hide list, show selected
     listEl.style.display = 'none';
@@ -622,6 +630,8 @@ function updateSummary() {
     document.getElementById('summary-accession').textContent = selectedPatient?.accession_number || '-';
     document.getElementById('summary-study').textContent =
         selectedPatient?.procedure_description || selectedPatient?.requested_procedure_description || 'Document Conversion';
+    document.getElementById('summary-worklist').textContent =
+        selectedPatient?.worklist_ae_title || selectedPatient?.server_ae_title || '-';
     document.getElementById('summary-files').textContent = uploadedFileId ? '1 file' : '0 files';
     document.getElementById('summary-destination').textContent = selectedDestination?.name || 'Not selected';
 }
