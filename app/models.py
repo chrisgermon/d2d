@@ -69,3 +69,37 @@ class WorklistQueryAllRequest(BaseModel):
     port: int = 5010
     ae_title: str = "LIVUSWL"
     calling_ae: str = "D2DSERVER"
+
+
+# Query/Retrieve Models
+class QRSourceConfig(BaseModel):
+    """PACS source configuration for Query/Retrieve"""
+    name: str = Field(default="Default PACS", description="Friendly name for this PACS source")
+    host: str = Field(..., description="PACS server IP address")
+    port: int = Field(..., description="PACS server port")
+    ae_title: str = Field(..., description="PACS server AE Title")
+    calling_ae: str = Field(default="D2D_QR", description="Our AE Title for Q/R operations")
+
+
+class QRStorageConfig(BaseModel):
+    """Local Storage SCP configuration"""
+    ae_title: str = Field(default="D2D_STORE", description="Storage SCP AE Title")
+    port: int = Field(default=11113, description="Storage SCP port")
+
+
+class QRQueryRequest(BaseModel):
+    """Request to query studies by accession numbers"""
+    accession_numbers: list[str] = Field(..., description="List of accession numbers to search")
+    source: QRSourceConfig
+
+
+class QRRetrieveRequest(BaseModel):
+    """Request to retrieve studies"""
+    study_uids: list[str] = Field(..., description="List of Study Instance UIDs to retrieve")
+    source: QRSourceConfig
+    storage: QRStorageConfig = QRStorageConfig()
+
+
+class QRTestRequest(BaseModel):
+    """Request to test connection to PACS"""
+    source: QRSourceConfig

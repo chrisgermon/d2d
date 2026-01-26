@@ -19,12 +19,18 @@ from app.models import (
     ConversionResponse,
     WorklistConfig,
     WorklistQueryRequest,
-    WorklistQueryAllRequest
+    WorklistQueryAllRequest,
+    QRSourceConfig,
+    QRStorageConfig,
+    QRQueryRequest,
+    QRRetrieveRequest,
+    QRTestRequest
 )
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
 from app.dicom_worklist import WorklistQuery, query_all_worklists, ALL_WORKLIST_AE_TITLES
 from app.dicom_logger import dicom_logger, DicomOperationType
+from app.dicom_qr import QueryRetrieve, get_storage_scp, list_retrieved_studies
 
 app = FastAPI(
     title="Documents to DICOM (D2D)",
@@ -501,6 +507,180 @@ async def get_worklist_ae_titles(api_key: str = Depends(verify_api_key)):
     return {
         "ae_titles": ALL_WORKLIST_AE_TITLES,
         "count": len(ALL_WORKLIST_AE_TITLES)
+    }
+
+
+# Query/Retrieve page route
+@app.get("/qr", response_class=HTMLResponse)
+async def qr_page():
+    """Serve the Query/Retrieve tool page (local access only)"""
+    html_file = Path("static/qr.html")
+    if html_file.exists():
+        return FileResponse(html_file)
+    return HTMLResponse("<h1>Query/Retrieve Tool</h1><p>QR page not found</p>")
+
+
+# Query/Retrieve API endpoints
+@app.post("/api/qr/test")
+async def test_qr_connection(request: QRTestRequest):
+    """Test connection to PACS server for Query/Retrieve"""
+    try:
+        qr = QueryRetrieve(
+            host=request.source.host,
+            port=request.source.port,
+            ae_title=request.source.ae_title,
+            calling_ae=request.source.calling_ae
+        )
+
+        success, message = qr.test_connection()
+
+        if success:
+            return {"success": True, "message": message}
+        else:
+            raise HTTPException(status_code=500, detail=message)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/qr/query")
+async def query_studies(request: QRQueryRequest):
+    """Query PACS for studies by accession numbers"""
+    try:
+        qr = QueryRetrieve(
+            host=request.source.host,
+            port=request.source.port,
+            ae_title=request.source.ae_title,
+            calling_ae=request.source.calling_ae
+        )
+
+        success, studies, message = qr.find_studies_by_accession(request.accession_numbers)
+
+        return {
+            "success": success,
+            "studies": studies,
+            "count": len(studies),
+            "message": message
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/qr/retrieve")
+async def retrieve_studies(request: QRRetrieveRequest):
+    """Retrieve studies from PACS using C-MOVE"""
+    try:
+        # Ensure Storage SCP is running
+        storage_scp = get_storage_scp()
+        if not storage_scp.is_running():
+            success, msg = storage_scp.start()
+            if not success:
+                raise HTTPException(status_code=500, detail=f"Failed to start Storage SCP: {msg}")
+
+        qr = QueryRetrieve(
+            host=request.source.host,
+            port=request.source.port,
+            ae_title=request.source.ae_title,
+            calling_ae=request.source.calling_ae,
+            move_destination_ae=request.storage.ae_title
+        )
+
+        success_count, failed_count, errors = qr.retrieve_studies(request.study_uids)
+
+        return {
+            "success": failed_count == 0,
+            "retrieved": success_count,
+            "failed": failed_count,
+            "errors": errors,
+            "message": f"Retrieved {success_count} studies, {failed_count} failed"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/qr/storage/status")
+async def get_storage_status():
+    """Get Storage SCP status and configuration"""
+    storage_scp = get_storage_scp()
+    return {
+        "running": storage_scp.is_running(),
+        "ae_title": storage_scp.ae_title,
+        "port": storage_scp.port,
+        "storage_path": str(storage_scp.storage_path),
+        "received_files_count": len(storage_scp.get_received_files())
+    }
+
+
+@app.post("/api/qr/storage/start")
+async def start_storage_scp():
+    """Start the Storage SCP"""
+    try:
+        storage_scp = get_storage_scp()
+        if storage_scp.is_running():
+            return {"success": True, "message": "Storage SCP already running"}
+
+        success, message = storage_scp.start()
+        if success:
+            return {"success": True, "message": message}
+        else:
+            raise HTTPException(status_code=500, detail=message)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/qr/storage/stop")
+async def stop_storage_scp():
+    """Stop the Storage SCP"""
+    try:
+        storage_scp = get_storage_scp()
+        success, message = storage_scp.stop()
+        return {"success": success, "message": message}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/qr/storage/files")
+async def list_storage_files():
+    """List files received by Storage SCP in current session"""
+    storage_scp = get_storage_scp()
+    return {
+        "files": storage_scp.get_received_files(),
+        "count": len(storage_scp.get_received_files())
+    }
+
+
+@app.get("/api/qr/storage/studies")
+async def list_stored_studies():
+    """List all studies in the Q/R storage directory"""
+    try:
+        studies = list_retrieved_studies(str(settings.qr_storage_path))
+        return {
+            "success": True,
+            "studies": studies,
+            "count": len(studies),
+            "storage_path": str(settings.qr_storage_path)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/qr/config")
+async def get_qr_config():
+    """Get Q/R configuration including storage path"""
+    return {
+        "storage_path": str(settings.qr_storage_path),
+        "scp_ae_title": settings.qr_scp_ae_title,
+        "scp_port": settings.qr_scp_port
     }
 
 
