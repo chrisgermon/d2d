@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query/Retrieve Tool - D2D</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .qr-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+            color: #333;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .form-group input, .form-group textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+        }
+
+        textarea.accession-input {
+            min-height: 150px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .status-badge.running {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-indicator.running {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.stopped {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .results-table th, .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .results-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .results-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .results-table tr.selected {
+            background: #e3f2fd;
+        }
+
+        .checkbox-cell {
+            width: 40px;
+            text-align: center;
+        }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .storage-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .storage-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .storage-info-item .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .storage-info-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .count-badge {
+            background: #007bff;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .header-nav a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .header-nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="qr-container">
+        <!-- Header -->
+        <header class="panel">
+            <h1>Query/Retrieve Tool</h1>
+            <p>Search PACS by accession numbers and retrieve studies to local storage</p>
+            <div class="header-nav">
+                <a href="/">Back to D2D</a>
+                <a href="/worklist">Worklist</a>
+                <a href="/settings">Settings</a>
+            </div>
+        </header>
+
+        <!-- Storage SCP Status -->
+        <section class="panel">
+            <div class="section-header">
+                <h2>Storage SCP</h2>
+                <span id="scp-status" class="status-badge stopped">
+                    <span class="status-indicator stopped"></span>
+                    Stopped
+                </span>
+            </div>
+            <div class="storage-info">
+                <div class="storage-info-item">
+                    <span class="label">AE Title</span>
+                    <span class="value" id="scp-ae-title">D2D_STORE</span>
+                </div>
+                <div class="storage-info-item">
+                    <span class="label">Port</span>
+                    <span class="value" id="scp-port">11113</span>
+                </div>
+                <div class="storage-info-item">
+                    <span class="label">Storage Path</span>
+                    <span class="value" id="scp-storage-path">./qr_storage</span>
+                </div>
+                <div class="storage-info-item">
+                    <span class="label">Received Files</span>
+                    <span class="value" id="scp-file-count">0</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" id="btn-start-scp" onclick="startStorageSCP()">Start SCP</button>
+                <button class="btn btn-danger hidden" id="btn-stop-scp" onclick="stopStorageSCP()">Stop SCP</button>
+                <button class="btn btn-secondary" onclick="refreshStorageStatus()">Refresh Status</button>
+            </div>
+            <p class="help-text">The Storage SCP must be running to receive DICOM files from C-MOVE operations. Make sure the PACS is configured to send to this AE Title and port.</p>
+        </section>
+
+        <!-- PACS Source Configuration -->
+        <section class="panel">
+            <h2>PACS Source</h2>
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="pacs-host">IP Address</label>
+                    <input type="text" id="pacs-host" placeholder="e.g., 10.17.1.21">
+                </div>
+                <div class="form-group">
+                    <label for="pacs-port">Port</label>
+                    <input type="number" id="pacs-port" placeholder="e.g., 5000">
+                </div>
+                <div class="form-group">
+                    <label for="pacs-ae">AE Title</label>
+                    <input type="text" id="pacs-ae" placeholder="e.g., PACS_AE">
+                </div>
+                <div class="form-group">
+                    <label for="calling-ae">Calling AE Title</label>
+                    <input type="text" id="calling-ae" value="D2D_QR">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="testConnection()">Test Connection</button>
+            </div>
+            <div id="connection-result"></div>
+        </section>
+
+        <!-- Accession Number Input -->
+        <section class="panel">
+            <h2>Search by Accession Numbers</h2>
+            <div class="form-group">
+                <label for="accession-input">Accession Numbers (one per line)</label>
+                <textarea id="accession-input" class="accession-input" placeholder="Enter accession numbers, one per line...
+Example:
+ACC001234
+ACC005678
+ACC009012"></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="queryStudies()">Search PACS</button>
+                <button class="btn btn-secondary" onclick="clearAccessions()">Clear</button>
+            </div>
+            <div id="query-result"></div>
+        </section>
+
+        <!-- Query Results -->
+        <section class="panel" id="results-panel" style="display: none;">
+            <div class="section-header">
+                <h2>Search Results</h2>
+                <span class="count-badge" id="results-count">0 studies</span>
+            </div>
+            <div class="btn-group" style="margin-bottom: 15px;">
+                <button class="btn btn-primary" onclick="selectAll()">Select All</button>
+                <button class="btn btn-secondary" onclick="selectNone()">Select None</button>
+                <button class="btn btn-success" onclick="retrieveSelected()">Retrieve Selected</button>
+            </div>
+            <div class="table-container">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)"></th>
+                            <th>Accession</th>
+                            <th>Patient Name</th>
+                            <th>Patient ID</th>
+                            <th>Study Date</th>
+                            <th>Modality</th>
+                            <th>Description</th>
+                            <th>Images</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                    </tbody>
+                </table>
+            </div>
+            <div id="retrieve-result"></div>
+        </section>
+
+        <!-- Retrieved Studies -->
+        <section class="panel">
+            <div class="section-header">
+                <h2>Retrieved Studies</h2>
+                <button class="btn btn-secondary" onclick="refreshStoredStudies()">Refresh</button>
+            </div>
+            <div id="stored-studies-container">
+                <p class="help-text">No studies retrieved yet. Search and retrieve studies from PACS above.</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // State
+        let foundStudies = [];
+        let selectedStudyUids = new Set();
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshStorageStatus();
+            refreshStoredStudies();
+        });
+
+        // Get PACS source configuration
+        function getSourceConfig() {
+            return {
+                name: "Manual PACS",
+                host: document.getElementById('pacs-host').value.trim(),
+                port: parseInt(document.getElementById('pacs-port').value) || 0,
+                ae_title: document.getElementById('pacs-ae').value.trim(),
+                calling_ae: document.getElementById('calling-ae').value.trim() || 'D2D_QR'
+            };
+        }
+
+        // Validate source config
+        function validateSourceConfig(source) {
+            if (!source.host) return "Please enter PACS IP address";
+            if (!source.port) return "Please enter PACS port";
+            if (!source.ae_title) return "Please enter PACS AE Title";
+            return null;
+        }
+
+        // Test connection to PACS
+        async function testConnection() {
+            const source = getSourceConfig();
+            const error = validateSourceConfig(source);
+            if (error) {
+                showMessage('connection-result', error, 'error');
+                return;
+            }
+
+            showMessage('connection-result', '<div class="loading"><span class="spinner"></span>Testing connection...</div>', 'info');
+
+            try {
+                const response = await fetch('/api/qr/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showMessage('connection-result', data.message, 'success');
+                } else {
+                    showMessage('connection-result', data.detail || data.message || 'Connection failed', 'error');
+                }
+            } catch (e) {
+                showMessage('connection-result', 'Error: ' + e.message, 'error');
+            }
+        }
+
+        // Query studies by accession numbers
+        async function queryStudies() {
+            const source = getSourceConfig();
+            const error = validateSourceConfig(source);
+            if (error) {
+                showMessage('query-result', error, 'error');
+                return;
+            }
+
+            const accessionText = document.getElementById('accession-input').value.trim();
+            if (!accessionText) {
+                showMessage('query-result', 'Please enter at least one accession number', 'error');
+                return;
+            }
+
+            const accessionNumbers = accessionText.split('\n')
+                .map(a => a.trim())
+                .filter(a => a.length > 0);
+
+            if (accessionNumbers.length === 0) {
+                showMessage('query-result', 'Please enter at least one accession number', 'error');
+                return;
+            }
+
+            showMessage('query-result', `<div class="loading"><span class="spinner"></span>Searching for ${accessionNumbers.length} accession(s)...</div>`, 'info');
+
+            try {
+                const response = await fetch('/api/qr/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        accession_numbers: accessionNumbers,
+                        source
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    foundStudies = data.studies || [];
+                    selectedStudyUids.clear();
+
+                    showMessage('query-result', data.message, data.success ? 'success' : 'info');
+                    displayResults();
+                } else {
+                    showMessage('query-result', data.detail || 'Query failed', 'error');
+                }
+            } catch (e) {
+                showMessage('query-result', 'Error: ' + e.message, 'error');
+            }
+        }
+
+        // Display query results
+        function displayResults() {
+            const panel = document.getElementById('results-panel');
+            const tbody = document.getElementById('results-body');
+            const countBadge = document.getElementById('results-count');
+
+            if (foundStudies.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+            countBadge.textContent = `${foundStudies.length} ${foundStudies.length === 1 ? 'study' : 'studies'}`;
+
+            tbody.innerHTML = foundStudies.map((study, index) => `
+                <tr data-uid="${study.study_instance_uid}" onclick="toggleStudySelection('${study.study_instance_uid}', this)">
+                    <td class="checkbox-cell">
+                        <input type="checkbox"
+                               onchange="toggleStudySelection('${study.study_instance_uid}', this.closest('tr'))"
+                               onclick="event.stopPropagation()"
+                               ${selectedStudyUids.has(study.study_instance_uid) ? 'checked' : ''}>
+                    </td>
+                    <td>${study.accession_number || '-'}</td>
+                    <td>${study.patient_name || '-'}</td>
+                    <td>${study.patient_id || '-'}</td>
+                    <td>${study.study_date || '-'}</td>
+                    <td>${study.modalities || '-'}</td>
+                    <td>${study.study_description || '-'}</td>
+                    <td>${study.num_instances || '-'}</td>
+                </tr>
+            `).join('');
+
+            updateSelectAllCheckbox();
+        }
+
+        // Toggle study selection
+        function toggleStudySelection(uid, row) {
+            const checkbox = row.querySelector('input[type="checkbox"]');
+
+            if (selectedStudyUids.has(uid)) {
+                selectedStudyUids.delete(uid);
+                row.classList.remove('selected');
+                checkbox.checked = false;
+            } else {
+                selectedStudyUids.add(uid);
+                row.classList.add('selected');
+                checkbox.checked = true;
+            }
+
+            updateSelectAllCheckbox();
+        }
+
+        // Update select all checkbox state
+        function updateSelectAllCheckbox() {
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            selectAllCheckbox.checked = selectedStudyUids.size === foundStudies.length && foundStudies.length > 0;
+            selectAllCheckbox.indeterminate = selectedStudyUids.size > 0 && selectedStudyUids.size < foundStudies.length;
+        }
+
+        // Toggle select all
+        function toggleSelectAll(checkbox) {
+            if (checkbox.checked) {
+                selectAll();
+            } else {
+                selectNone();
+            }
+        }
+
+        // Select all studies
+        function selectAll() {
+            selectedStudyUids.clear();
+            foundStudies.forEach(study => {
+                selectedStudyUids.add(study.study_instance_uid);
+            });
+            displayResults();
+        }
+
+        // Select none
+        function selectNone() {
+            selectedStudyUids.clear();
+            displayResults();
+        }
+
+        // Retrieve selected studies
+        async function retrieveSelected() {
+            if (selectedStudyUids.size === 0) {
+                showMessage('retrieve-result', 'Please select at least one study to retrieve', 'error');
+                return;
+            }
+
+            const source = getSourceConfig();
+            const error = validateSourceConfig(source);
+            if (error) {
+                showMessage('retrieve-result', error, 'error');
+                return;
+            }
+
+            // Check if Storage SCP is running
+            const statusResponse = await fetch('/api/qr/storage/status');
+            const statusData = await statusResponse.json();
+
+            if (!statusData.running) {
+                showMessage('retrieve-result', 'Storage SCP is not running. Please start it first.', 'error');
+                return;
+            }
+
+            const studyUids = Array.from(selectedStudyUids);
+
+            showMessage('retrieve-result', `<div class="loading"><span class="spinner"></span>Retrieving ${studyUids.length} study(s)...</div>`, 'info');
+
+            try {
+                const response = await fetch('/api/qr/retrieve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        study_uids: studyUids,
+                        source,
+                        storage: {
+                            ae_title: statusData.ae_title,
+                            port: statusData.port
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const msgClass = data.success ? 'success' : 'error';
+                    let msg = data.message;
+                    if (data.errors && data.errors.length > 0) {
+                        msg += '<br>Errors:<br>' + data.errors.join('<br>');
+                    }
+                    showMessage('retrieve-result', msg, msgClass);
+
+                    // Refresh storage status and stored studies
+                    setTimeout(() => {
+                        refreshStorageStatus();
+                        refreshStoredStudies();
+                    }, 1000);
+                } else {
+                    showMessage('retrieve-result', data.detail || 'Retrieve failed', 'error');
+                }
+            } catch (e) {
+                showMessage('retrieve-result', 'Error: ' + e.message, 'error');
+            }
+        }
+
+        // Clear accession input
+        function clearAccessions() {
+            document.getElementById('accession-input').value = '';
+            document.getElementById('query-result').innerHTML = '';
+            foundStudies = [];
+            selectedStudyUids.clear();
+            document.getElementById('results-panel').style.display = 'none';
+        }
+
+        // Storage SCP functions
+        async function refreshStorageStatus() {
+            try {
+                const response = await fetch('/api/qr/storage/status');
+                const data = await response.json();
+
+                const statusBadge = document.getElementById('scp-status');
+                const startBtn = document.getElementById('btn-start-scp');
+                const stopBtn = document.getElementById('btn-stop-scp');
+
+                document.getElementById('scp-ae-title').textContent = data.ae_title;
+                document.getElementById('scp-port').textContent = data.port;
+                document.getElementById('scp-storage-path').textContent = data.storage_path;
+                document.getElementById('scp-file-count').textContent = data.received_files_count;
+
+                if (data.running) {
+                    statusBadge.className = 'status-badge running';
+                    statusBadge.innerHTML = '<span class="status-indicator running"></span>Running';
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                } else {
+                    statusBadge.className = 'status-badge stopped';
+                    statusBadge.innerHTML = '<span class="status-indicator stopped"></span>Stopped';
+                    startBtn.classList.remove('hidden');
+                    stopBtn.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('Error refreshing storage status:', e);
+            }
+        }
+
+        async function startStorageSCP() {
+            try {
+                const response = await fetch('/api/qr/storage/start', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    refreshStorageStatus();
+                } else {
+                    alert('Failed to start Storage SCP: ' + (data.detail || data.message));
+                }
+            } catch (e) {
+                alert('Error starting Storage SCP: ' + e.message);
+            }
+        }
+
+        async function stopStorageSCP() {
+            try {
+                const response = await fetch('/api/qr/storage/stop', { method: 'POST' });
+                const data = await response.json();
+                refreshStorageStatus();
+            } catch (e) {
+                alert('Error stopping Storage SCP: ' + e.message);
+            }
+        }
+
+        // Refresh stored studies
+        async function refreshStoredStudies() {
+            const container = document.getElementById('stored-studies-container');
+
+            try {
+                const response = await fetch('/api/qr/storage/studies');
+                const data = await response.json();
+
+                if (!data.success || data.studies.length === 0) {
+                    container.innerHTML = '<p class="help-text">No studies retrieved yet. Search and retrieve studies from PACS above.</p>';
+                    return;
+                }
+
+                let html = `
+                    <p class="help-text">Storage path: ${data.storage_path}</p>
+                    <div class="table-container">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Accession</th>
+                                    <th>Patient Name</th>
+                                    <th>Patient ID</th>
+                                    <th>Study Date</th>
+                                    <th>Modality</th>
+                                    <th>Files</th>
+                                    <th>Size (MB)</th>
+                                    <th>Directory</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                data.studies.forEach(study => {
+                    html += `
+                        <tr>
+                            <td>${study.accession_number || '-'}</td>
+                            <td>${study.patient_name || '-'}</td>
+                            <td>${study.patient_id || '-'}</td>
+                            <td>${study.study_date || '-'}</td>
+                            <td>${study.modality || '-'}</td>
+                            <td>${study.file_count || '-'}</td>
+                            <td>${study.total_size_mb || '-'}</td>
+                            <td style="font-size: 11px; word-break: break-all;">${study.directory || '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<p class="help-text" style="color: red;">Error loading stored studies: ' + e.message + '</p>';
+            }
+        }
+
+        // Helper function to show messages
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="message ${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

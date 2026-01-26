@@ -13,7 +13,12 @@ class Settings(BaseSettings):
     port: int = 8000
     archive_path: Path = Path("./dicom_archive")
     upload_path: Path = Path("./uploads")
+    qr_storage_path: Path = Path("./qr_storage")
     max_file_size: int = 50_000_000  # 50MB
+
+    # Query/Retrieve Storage SCP settings
+    qr_scp_ae_title: str = "D2D_STORE"
+    qr_scp_port: int = 11113
 
     # API Security Settings (can be overridden by environment variables)
     require_api_key: bool = Field(default=True, description="Whether API key authentication is required")
@@ -29,6 +34,7 @@ class Settings(BaseSettings):
         # Create directories if they don't exist
         self.archive_path.mkdir(parents=True, exist_ok=True)
         self.upload_path.mkdir(parents=True, exist_ok=True)
+        self.qr_storage_path.mkdir(parents=True, exist_ok=True)
         # Load runtime settings from file
         self._load_runtime_settings()
 
