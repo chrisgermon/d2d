@@ -395,15 +395,26 @@
                 <label for="accession-input">Accession Numbers (one per line)</label>
                 <textarea id="accession-input" class="accession-input" placeholder="Enter accession numbers, one per line...
 Example:
-ACC001234
-ACC005678
+2026R0058181
+2026R0058182
 ACC009012"></textarea>
+            </div>
+            <div style="margin: 15px 0; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="use-patient-root" style="width: 18px; height: 18px;">
+                    <span>Use Patient Root (try if Study Root returns no results)</span>
+                </label>
             </div>
             <div class="btn-group">
                 <button class="btn btn-primary" onclick="queryStudies()">Search PACS</button>
                 <button class="btn btn-secondary" onclick="clearAccessions()">Clear</button>
             </div>
             <div id="query-result"></div>
+            <p class="help-text" style="margin-top: 10px;">
+                <strong>Note:</strong> Q/R operations typically use a different AE Title than worklist queries.
+                Common Q/R AE Titles include: PACS, QUERY, DCM4CHEE, etc.
+                If Study Root returns no results, try Patient Root.
+            </p>
         </section>
 
         <!-- Query Results -->
@@ -536,13 +547,16 @@ ACC009012"></textarea>
 
             showMessage('query-result', `<div class="loading"><span class="spinner"></span>Searching for ${accessionNumbers.length} accession(s)...</div>`, 'info');
 
+            const usePatientRoot = document.getElementById('use-patient-root').checked;
+
             try {
                 const response = await fetch('/api/qr/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         accession_numbers: accessionNumbers,
-                        source
+                        source,
+                        use_patient_root: usePatientRoot
                     })
                 });
 

@@ -91,6 +91,7 @@ class QRQueryRequest(BaseModel):
     """Request to query studies by accession numbers"""
     accession_numbers: list[str] = Field(..., description="List of accession numbers to search")
     source: QRSourceConfig
+    use_patient_root: bool = Field(default=False, description="Use Patient Root model instead of Study Root")
 
 
 class QRRetrieveRequest(BaseModel):

@@ -244,28 +244,46 @@ class QueryRetrieve:
                 else:
                     return False, "C-ECHO failed"
             else:
-                return False, f"Association rejected by {self.ae_title}"
+                # Get rejection reason
+                reject_info = ""
+                if hasattr(assoc, 'acceptor') and assoc.acceptor:
+                    reject_info = f" (Acceptor info available)"
+                return False, f"Association rejected by {self.ae_title}{reject_info}. Check AE Title is correct for Q/R operations."
 
         except Exception as e:
             return False, f"Connection failed: {str(e)}"
 
     def find_studies_by_accession(
         self,
-        accession_numbers: List[str]
+        accession_numbers: List[str],
+        use_patient_root: bool = False
     ) -> tuple[bool, List[Dict], str]:
         """
         Find studies by accession numbers using C-FIND.
 
         Args:
             accession_numbers: List of accession numbers to search for
+            use_patient_root: If True, use Patient Root model instead of Study Root
 
         Returns:
             tuple: (success, list of found studies, message)
         """
         all_studies = []
         failed = []
+        debug_info = []
+
+        # Choose query model
+        if use_patient_root:
+            query_model = PatientRootQueryRetrieveInformationModelFind
+            model_name = "Patient Root"
+        else:
+            query_model = StudyRootQueryRetrieveInformationModelFind
+            model_name = "Study Root"
 
         try:
+            logger.info(f"Connecting to {self.host}:{self.port} AE={self.ae_title} using {model_name}")
+            debug_info.append(f"Query model: {model_name}")
+
             assoc = self.ae.associate(
                 self.host,
                 self.port,
@@ -273,19 +291,31 @@ class QueryRetrieve:
             )
 
             if not assoc.is_established:
-                return False, [], f"Failed to connect to {self.ae_title}"
+                error_msg = f"Failed to connect to {self.ae_title}"
+                # Check what contexts were accepted
+                debug_info.append("Association failed - check AE Title")
+                return False, [], f"{error_msg}. Debug: {'; '.join(debug_info)}"
+
+            # Check which contexts were accepted
+            accepted_contexts = []
+            for cx in assoc.accepted_contexts:
+                accepted_contexts.append(cx.abstract_syntax.name if hasattr(cx.abstract_syntax, 'name') else str(cx.abstract_syntax))
+            debug_info.append(f"Accepted contexts: {', '.join(accepted_contexts[:3])}...")
+            logger.info(f"Accepted contexts: {accepted_contexts}")
 
             for accession in accession_numbers:
                 accession = accession.strip()
                 if not accession:
                     continue
 
+                logger.info(f"Querying for accession: {accession}")
+
                 # Build query dataset
                 query_ds = Dataset()
                 query_ds.QueryRetrieveLevel = "STUDY"
                 query_ds.AccessionNumber = accession
 
-                # Request return keys
+                # Request return keys (empty string means "return this field")
                 query_ds.PatientName = ""
                 query_ds.PatientID = ""
                 query_ds.PatientBirthDate = ""
@@ -300,21 +330,34 @@ class QueryRetrieve:
                 query_ds.ReferringPhysicianName = ""
 
                 # Perform C-FIND
-                responses = assoc.send_c_find(
-                    query_ds,
-                    StudyRootQueryRetrieveInformationModelFind
-                )
+                try:
+                    responses = assoc.send_c_find(query_ds, query_model)
 
-                found = False
-                for (status, identifier) in responses:
-                    if status and status.Status in [0xFF00, 0xFF01]:  # Pending
-                        if identifier:
-                            study = self._parse_study(identifier, accession)
-                            if study:
-                                all_studies.append(study)
-                                found = True
+                    found = False
+                    response_count = 0
+                    for (status, identifier) in responses:
+                        response_count += 1
+                        if status:
+                            logger.info(f"C-FIND response status: 0x{status.Status:04X}")
+                            if status.Status in [0xFF00, 0xFF01]:  # Pending
+                                if identifier:
+                                    study = self._parse_study(identifier, accession)
+                                    if study:
+                                        all_studies.append(study)
+                                        found = True
+                                        logger.info(f"Found study: {study.get('study_instance_uid', 'N/A')[:20]}...")
+                            elif status.Status == 0x0000:  # Success (end of results)
+                                pass
+                            else:
+                                logger.warning(f"C-FIND status: 0x{status.Status:04X}")
 
-                if not found:
+                    logger.info(f"Accession {accession}: {response_count} responses, found={found}")
+
+                    if not found:
+                        failed.append(accession)
+
+                except Exception as query_error:
+                    logger.error(f"Query error for {accession}: {query_error}")
                     failed.append(accession)
 
             assoc.release()
@@ -322,11 +365,13 @@ class QueryRetrieve:
             message = f"Found {len(all_studies)} studies"
             if failed:
                 message += f". Not found: {', '.join(failed)}"
+            message += f" [{model_name}]"
 
             return True, all_studies, message
 
         except Exception as e:
-            return False, all_studies, f"Query failed: {str(e)}"
+            logger.error(f"Query failed: {e}")
+            return False, all_studies, f"Query failed: {str(e)}. Debug: {'; '.join(debug_info)}"
 
     def _parse_study(self, dataset: Dataset, searched_accession: str) -> Optional[Dict]:
         """Parse C-FIND response into a dictionary"""

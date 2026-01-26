@@ -556,7 +556,10 @@ async def query_studies(request: QRQueryRequest):
             calling_ae=request.source.calling_ae
         )
 
-        success, studies, message = qr.find_studies_by_accession(request.accession_numbers)
+        success, studies, message = qr.find_studies_by_accession(
+            request.accession_numbers,
+            use_patient_root=request.use_patient_root
+        )
 
         return {
             "success": success,
