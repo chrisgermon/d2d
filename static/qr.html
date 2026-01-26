@@ -110,6 +110,15 @@
             background: #545b62;
         }
 
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -225,6 +234,12 @@
             border: 1px solid #bee5eb;
         }
 
+        .message.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
         .loading {
             display: flex;
             align-items: center;
@@ -311,6 +326,219 @@
         .header-nav a:hover {
             text-decoration: underline;
         }
+
+        /* Batch Progress Styles */
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar-wrapper {
+            background: #e9ecef;
+            border-radius: 8px;
+            height: 24px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            border-radius: 8px;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .progress-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .progress-stat {
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .progress-stat .number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .progress-stat .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .progress-stat.success .number { color: #28a745; }
+        .progress-stat.failed .number { color: #dc3545; }
+        .progress-stat.pending .number { color: #6c757d; }
+        .progress-stat.running .number { color: #007bff; }
+
+        /* Item Status Styles */
+        .item-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .item-status.pending { background: #e9ecef; color: #6c757d; }
+        .item-status.querying { background: #cce5ff; color: #004085; }
+        .item-status.query_complete { background: #d4edda; color: #155724; }
+        .item-status.query_failed { background: #f8d7da; color: #721c24; }
+        .item-status.retrieving { background: #fff3cd; color: #856404; }
+        .item-status.completed { background: #28a745; color: white; }
+        .item-status.failed { background: #dc3545; color: white; }
+        .item-status.cancelled { background: #6c757d; color: white; }
+
+        /* File Upload Styles */
+        .file-upload-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-label {
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .file-upload-label:hover {
+            background: #545b62;
+        }
+
+        .file-name {
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* Tab styles */
+        .tab-container {
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #007bff;
+        }
+
+        .tab-btn.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Error list */
+        .error-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .error-item {
+            padding: 8px;
+            background: #fff;
+            border-left: 3px solid #dc3545;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .error-item .accession {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .error-item .message {
+            color: #721c24;
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: none;
+        }
+
+        /* Job history */
+        .job-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .job-history-item .job-info {
+            flex: 1;
+        }
+
+        .job-history-item .job-id {
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .job-status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .job-status-badge.pending { background: #e9ecef; color: #6c757d; }
+        .job-status-badge.running { background: #cce5ff; color: #004085; }
+        .job-status-badge.completed { background: #28a745; color: white; }
+        .job-status-badge.failed { background: #dc3545; color: white; }
+        .job-status-badge.cancelled { background: #6c757d; color: white; }
     </style>
 </head>
 <body>
@@ -388,28 +616,139 @@
             <div id="connection-result"></div>
         </section>
 
-        <!-- Accession Number Input -->
+        <!-- Batch Retrieval Section -->
         <section class="panel">
-            <h2>Search by Accession Numbers</h2>
-            <div class="form-group">
-                <label for="accession-input">Accession Numbers (one per line)</label>
-                <textarea id="accession-input" class="accession-input" placeholder="Enter accession numbers, one per line...
+            <h2>Batch Retrieval</h2>
+
+            <!-- Tab Navigation -->
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab('input')">Input Accessions</button>
+                    <button class="tab-btn" onclick="switchTab('progress')">Job Progress</button>
+                    <button class="tab-btn" onclick="switchTab('history')">Job History</button>
+                </div>
+            </div>
+
+            <!-- Input Tab -->
+            <div id="tab-input" class="tab-content active">
+                <div class="form-group">
+                    <label for="accession-input">Accession Numbers (one per line)</label>
+                    <textarea id="accession-input" class="accession-input" placeholder="Enter accession numbers, one per line...
 Example:
 ACC001234
 ACC005678
-ACC009012"></textarea>
+ACC009012
+
+You can also upload a CSV or text file containing accession numbers."></textarea>
+                </div>
+
+                <!-- File Upload -->
+                <div class="file-upload-wrapper">
+                    <input type="file" id="file-upload" accept=".csv,.txt" onchange="handleFileUpload(event)">
+                    <label for="file-upload" class="file-upload-label">Upload CSV/TXT File</label>
+                    <span id="file-name" class="file-name"></span>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-success" id="btn-start-batch" onclick="startBatchRetrieval()">Start Batch Retrieval</button>
+                    <button class="btn btn-primary" onclick="queryOnly()">Query Only (No Retrieve)</button>
+                    <button class="btn btn-secondary" onclick="clearAccessions()">Clear</button>
+                </div>
+
+                <p class="help-text">
+                    <strong>Batch Retrieval:</strong> Queries PACS for each accession number and automatically retrieves found studies.<br>
+                    <strong>Query Only:</strong> Only queries PACS without retrieving - useful for checking which studies exist.
+                </p>
+
+                <div id="batch-start-result"></div>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-primary" onclick="queryStudies()">Search PACS</button>
-                <button class="btn btn-secondary" onclick="clearAccessions()">Clear</button>
+
+            <!-- Progress Tab -->
+            <div id="tab-progress" class="tab-content">
+                <div id="no-active-job" class="message info">
+                    No active batch job. Start a new batch retrieval from the "Input Accessions" tab.
+                </div>
+
+                <div id="active-job-container" class="hidden">
+                    <div class="section-header">
+                        <div>
+                            <strong>Job ID:</strong> <span id="current-job-id" class="job-id" style="font-family: monospace;"></span>
+                            <span id="current-job-status" class="job-status-badge"></span>
+                        </div>
+                        <button class="btn btn-danger" id="btn-cancel-job" onclick="cancelCurrentJob()">Cancel Job</button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container">
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar" id="progress-bar" style="width: 0%">0%</div>
+                        </div>
+
+                        <!-- Progress Stats -->
+                        <div class="progress-stats">
+                            <div class="progress-stat">
+                                <div class="number" id="stat-total">0</div>
+                                <div class="label">Total</div>
+                            </div>
+                            <div class="progress-stat success">
+                                <div class="number" id="stat-completed">0</div>
+                                <div class="label">Completed</div>
+                            </div>
+                            <div class="progress-stat running">
+                                <div class="number" id="stat-queried">0</div>
+                                <div class="label">Queried</div>
+                            </div>
+                            <div class="progress-stat failed">
+                                <div class="number" id="stat-failed">0</div>
+                                <div class="label">Failed</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Details Table -->
+                    <h3>Accession Status</h3>
+                    <div class="table-container" style="max-height: 300px;">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Accession</th>
+                                    <th>Status</th>
+                                    <th>Patient Name</th>
+                                    <th>Patient ID</th>
+                                    <th>Study Date</th>
+                                    <th>Modality</th>
+                                    <th>Images</th>
+                                    <th>Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Error Summary -->
+                    <div id="error-summary" class="hidden" style="margin-top: 20px;">
+                        <h3>Errors</h3>
+                        <div class="error-list" id="error-list"></div>
+                    </div>
+                </div>
             </div>
-            <div id="query-result"></div>
+
+            <!-- History Tab -->
+            <div id="tab-history" class="tab-content">
+                <div class="btn-group" style="margin-bottom: 15px;">
+                    <button class="btn btn-secondary" onclick="refreshJobHistory()">Refresh</button>
+                </div>
+                <div id="job-history-container">
+                    <p class="help-text">No job history available.</p>
+                </div>
+            </div>
         </section>
 
-        <!-- Query Results -->
+        <!-- Query Results (for Query Only mode) -->
         <section class="panel" id="results-panel" style="display: none;">
             <div class="section-header">
-                <h2>Search Results</h2>
+                <h2>Query Results</h2>
                 <span class="count-badge" id="results-count">0 studies</span>
             </div>
             <div class="btn-group" style="margin-bottom: 15px;">
@@ -454,12 +793,70 @@ ACC009012"></textarea>
         // State
         let foundStudies = [];
         let selectedStudyUids = new Set();
+        let currentJobId = null;
+        let eventSource = null;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             refreshStorageStatus();
             refreshStoredStudies();
+            refreshJobHistory();
         });
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            if (tabName === 'history') {
+                refreshJobHistory();
+            }
+        }
+
+        // File upload handler
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('file-name').textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                let accessions = [];
+
+                if (file.name.endsWith('.csv')) {
+                    // Parse CSV - handle both single column and multi-column
+                    const lines = content.split(/\r?\n/);
+                    lines.forEach(line => {
+                        // Split by comma and take first non-empty value
+                        const parts = line.split(',');
+                        const acc = parts[0].trim().replace(/["']/g, '');
+                        if (acc && acc.length > 0) {
+                            accessions.push(acc);
+                        }
+                    });
+                } else {
+                    // Plain text - one per line
+                    accessions = content.split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0);
+                }
+
+                // Remove header if present (common header names)
+                const headerTerms = ['accession', 'accession_number', 'accessionnumber', 'acc', 'id'];
+                if (accessions.length > 0 && headerTerms.includes(accessions[0].toLowerCase())) {
+                    accessions.shift();
+                }
+
+                document.getElementById('accession-input').value = accessions.join('\n');
+                showMessage('batch-start-result', `Loaded ${accessions.length} accession numbers from ${file.name}`, 'success');
+            };
+            reader.readAsText(file);
+        }
 
         // Get PACS source configuration
         function getSourceConfig() {
@@ -478,6 +875,14 @@ ACC009012"></textarea>
             if (!source.port) return "Please enter PACS port";
             if (!source.ae_title) return "Please enter PACS AE Title";
             return null;
+        }
+
+        // Get accession numbers from input
+        function getAccessionNumbers() {
+            const text = document.getElementById('accession-input').value.trim();
+            return text.split('\n')
+                .map(a => a.trim())
+                .filter(a => a.length > 0);
         }
 
         // Test connection to PACS
@@ -510,7 +915,334 @@ ACC009012"></textarea>
             }
         }
 
-        // Query studies by accession numbers
+        // Start batch retrieval
+        async function startBatchRetrieval() {
+            await startBatchJob(true);
+        }
+
+        // Query only (no retrieve)
+        async function queryOnly() {
+            await startBatchJob(false);
+        }
+
+        // Start batch job
+        async function startBatchJob(autoRetrieve) {
+            const source = getSourceConfig();
+            const error = validateSourceConfig(source);
+            if (error) {
+                showMessage('batch-start-result', error, 'error');
+                return;
+            }
+
+            const accessionNumbers = getAccessionNumbers();
+            if (accessionNumbers.length === 0) {
+                showMessage('batch-start-result', 'Please enter at least one accession number', 'error');
+                return;
+            }
+
+            // Check if Storage SCP is running (if doing retrieve)
+            if (autoRetrieve) {
+                const statusResponse = await fetch('/api/qr/storage/status');
+                const statusData = await statusResponse.json();
+
+                if (!statusData.running) {
+                    showMessage('batch-start-result', 'Storage SCP is not running. Please start it first.', 'error');
+                    return;
+                }
+            }
+
+            showMessage('batch-start-result', `<div class="loading"><span class="spinner"></span>Starting batch job with ${accessionNumbers.length} accession numbers...</div>`, 'info');
+
+            try {
+                const response = await fetch('/api/qr/batch/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        accession_numbers: accessionNumbers,
+                        source,
+                        storage: {
+                            ae_title: document.getElementById('scp-ae-title').textContent,
+                            port: parseInt(document.getElementById('scp-port').textContent)
+                        },
+                        auto_retrieve: autoRetrieve
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showMessage('batch-start-result', `Batch job started: ${data.job_id}`, 'success');
+                    currentJobId = data.job_id;
+
+                    // Switch to progress tab and start monitoring
+                    switchTab('progress');
+                    startProgressMonitoring(data.job_id);
+                } else {
+                    showMessage('batch-start-result', data.detail || 'Failed to start batch job', 'error');
+                }
+            } catch (e) {
+                showMessage('batch-start-result', 'Error: ' + e.message, 'error');
+            }
+        }
+
+        // Start monitoring job progress via SSE
+        function startProgressMonitoring(jobId) {
+            // Close existing connection
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Show active job container
+            document.getElementById('no-active-job').classList.add('hidden');
+            document.getElementById('active-job-container').classList.remove('hidden');
+            document.getElementById('current-job-id').textContent = jobId;
+            document.getElementById('btn-cancel-job').disabled = false;
+
+            // Connect to SSE endpoint
+            eventSource = new EventSource(`/api/qr/batch/${jobId}/progress`);
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleProgressEvent(data);
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('SSE error:', error);
+                // Try to get final status
+                fetchJobStatus(jobId);
+            };
+        }
+
+        // Handle progress events
+        function handleProgressEvent(data) {
+            // Update status badge
+            const statusBadge = document.getElementById('current-job-status');
+            statusBadge.textContent = data.status || '';
+            statusBadge.className = 'job-status-badge ' + (data.status || '');
+
+            // Update progress bar
+            if (data.progress_percent !== undefined) {
+                const progressBar = document.getElementById('progress-bar');
+                progressBar.style.width = data.progress_percent + '%';
+                progressBar.textContent = Math.round(data.progress_percent) + '%';
+            }
+
+            // Update stats
+            if (data.total_items !== undefined) {
+                document.getElementById('stat-total').textContent = data.total_items;
+            }
+            if (data.queried_items !== undefined) {
+                document.getElementById('stat-queried').textContent = data.queried_items;
+            }
+            if (data.retrieved_items !== undefined) {
+                document.getElementById('stat-completed').textContent = data.retrieved_items;
+            }
+            if (data.failed_items !== undefined) {
+                document.getElementById('stat-failed').textContent = data.failed_items;
+            }
+
+            // Update items table
+            if (data.items) {
+                updateItemsTable(data.items);
+            }
+
+            // Handle item updates
+            if (data.type === 'item_update') {
+                updateSingleItem(data);
+            }
+
+            // Handle job completion
+            if (data.type === 'job_completed' || data.type === 'job_failed' || data.type === 'job_cancelled') {
+                document.getElementById('btn-cancel-job').disabled = true;
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+
+                // Refresh storage status
+                setTimeout(() => {
+                    refreshStorageStatus();
+                    refreshStoredStudies();
+                }, 1000);
+            }
+
+            // Show errors if any
+            if (data.items) {
+                const errors = data.items.filter(item => item.error_message);
+                if (errors.length > 0) {
+                    showErrorSummary(errors);
+                }
+            }
+        }
+
+        // Update items table
+        function updateItemsTable(items) {
+            const tbody = document.getElementById('items-body');
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td><strong>${item.accession_number}</strong></td>
+                    <td><span class="item-status ${item.status}">${formatStatus(item.status)}</span></td>
+                    <td>${item.patient_name || '-'}</td>
+                    <td>${item.patient_id || '-'}</td>
+                    <td>${item.study_date || '-'}</td>
+                    <td>${item.modality || '-'}</td>
+                    <td>${item.num_instances || '-'}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${item.error_message || ''}">${item.error_message || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Update single item in table
+        function updateSingleItem(data) {
+            const tbody = document.getElementById('items-body');
+            const rows = tbody.querySelectorAll('tr');
+
+            for (const row of rows) {
+                const accCell = row.querySelector('td:first-child strong');
+                if (accCell && accCell.textContent === data.accession_number) {
+                    // Update status
+                    const statusCell = row.querySelector('td:nth-child(2)');
+                    if (statusCell && data.status) {
+                        statusCell.innerHTML = `<span class="item-status ${data.status}">${formatStatus(data.status)}</span>`;
+                    }
+
+                    // Update other fields
+                    if (data.patient_name) row.querySelector('td:nth-child(3)').textContent = data.patient_name;
+                    if (data.patient_id) row.querySelector('td:nth-child(4)').textContent = data.patient_id;
+                    if (data.study_date) row.querySelector('td:nth-child(5)').textContent = data.study_date;
+                    if (data.modality) row.querySelector('td:nth-child(6)').textContent = data.modality;
+                    if (data.num_instances) row.querySelector('td:nth-child(7)').textContent = data.num_instances;
+                    if (data.error_message) {
+                        const errorCell = row.querySelector('td:nth-child(8)');
+                        errorCell.textContent = data.error_message;
+                        errorCell.title = data.error_message;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Format status for display
+        function formatStatus(status) {
+            const statusMap = {
+                'pending': 'Pending',
+                'querying': 'Querying',
+                'query_complete': 'Found',
+                'query_failed': 'Not Found',
+                'retrieving': 'Retrieving',
+                'completed': 'Done',
+                'failed': 'Failed',
+                'cancelled': 'Cancelled'
+            };
+            return statusMap[status] || status;
+        }
+
+        // Show error summary
+        function showErrorSummary(errors) {
+            const container = document.getElementById('error-summary');
+            const list = document.getElementById('error-list');
+
+            if (errors.length > 0) {
+                container.classList.remove('hidden');
+                list.innerHTML = errors.map(err => `
+                    <div class="error-item">
+                        <span class="accession">${err.accession_number}:</span>
+                        <span class="message">${err.error_message}</span>
+                    </div>
+                `).join('');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // Fetch job status (fallback)
+        async function fetchJobStatus(jobId) {
+            try {
+                const response = await fetch(`/api/qr/batch/${jobId}/status`);
+                const data = await response.json();
+                handleProgressEvent({ ...data, type: 'initial' });
+            } catch (e) {
+                console.error('Error fetching job status:', e);
+            }
+        }
+
+        // Cancel current job
+        async function cancelCurrentJob() {
+            if (!currentJobId) return;
+
+            try {
+                const response = await fetch(`/api/qr/batch/${currentJobId}/cancel`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    document.getElementById('btn-cancel-job').disabled = true;
+                } else {
+                    alert('Failed to cancel job: ' + (data.detail || data.message));
+                }
+            } catch (e) {
+                alert('Error cancelling job: ' + e.message);
+            }
+        }
+
+        // Refresh job history
+        async function refreshJobHistory() {
+            const container = document.getElementById('job-history-container');
+
+            try {
+                const response = await fetch('/api/qr/batch/jobs');
+                const data = await response.json();
+
+                if (!data.success || data.jobs.length === 0) {
+                    container.innerHTML = '<p class="help-text">No job history available.</p>';
+                    return;
+                }
+
+                // Sort by created_at descending
+                const jobs = data.jobs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                container.innerHTML = jobs.map(job => `
+                    <div class="job-history-item">
+                        <div class="job-info">
+                            <span class="job-id">${job.job_id}</span>
+                            <span class="job-status-badge ${job.status}">${job.status}</span>
+                            <br>
+                            <small>
+                                ${job.total_items} items |
+                                ${job.retrieved_items} retrieved |
+                                ${job.failed_items} failed |
+                                ${new Date(job.created_at).toLocaleString()}
+                            </small>
+                        </div>
+                        <button class="btn btn-secondary" onclick="viewJobDetails('${job.job_id}')">View Details</button>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                container.innerHTML = '<p class="help-text" style="color: red;">Error loading job history: ' + e.message + '</p>';
+            }
+        }
+
+        // View job details
+        async function viewJobDetails(jobId) {
+            currentJobId = jobId;
+            switchTab('progress');
+
+            // Fetch and display job status
+            await fetchJobStatus(jobId);
+
+            // If job is still running, start monitoring
+            const status = document.getElementById('current-job-status').textContent;
+            if (status === 'running' || status === 'pending') {
+                startProgressMonitoring(jobId);
+            } else {
+                document.getElementById('btn-cancel-job').disabled = true;
+            }
+        }
+
+        // Legacy query studies (for manual query)
         async function queryStudies() {
             const source = getSourceConfig();
             const error = validateSourceConfig(source);
@@ -519,16 +1251,7 @@ ACC009012"></textarea>
                 return;
             }
 
-            const accessionText = document.getElementById('accession-input').value.trim();
-            if (!accessionText) {
-                showMessage('query-result', 'Please enter at least one accession number', 'error');
-                return;
-            }
-
-            const accessionNumbers = accessionText.split('\n')
-                .map(a => a.trim())
-                .filter(a => a.length > 0);
-
+            const accessionNumbers = getAccessionNumbers();
             if (accessionNumbers.length === 0) {
                 showMessage('query-result', 'Please enter at least one accession number', 'error');
                 return;
@@ -712,7 +1435,9 @@ ACC009012"></textarea>
         // Clear accession input
         function clearAccessions() {
             document.getElementById('accession-input').value = '';
-            document.getElementById('query-result').innerHTML = '';
+            document.getElementById('batch-start-result').innerHTML = '';
+            document.getElementById('file-name').textContent = '';
+            document.getElementById('file-upload').value = '';
             foundStudies = [];
             selectedStudyUids.clear();
             document.getElementById('results-panel').style.display = 'none';
