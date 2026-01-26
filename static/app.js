@@ -78,6 +78,23 @@ function formatDateToAustralian(dateStr) {
     return dateStr;
 }
 
+// Format DICOM name (LASTNAME^FIRSTNAME) to friendly display format (Firstname Lastname)
+function formatDicomNameForDisplay(dicomName) {
+    if (!dicomName) return '';
+    const parts = dicomName.split('^');
+    if (parts.length >= 2) {
+        const lastName = parts[0].trim();
+        const firstName = parts[1].trim();
+        return `${firstName} ${lastName}`;
+    }
+    return dicomName;
+}
+
+// Combine first and last names into DICOM format (LASTNAME^FIRSTNAME)
+function toDicomName(lastName, firstName) {
+    return `${lastName.trim().toUpperCase()}^${firstName.trim().toUpperCase()}`;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     checkApiSecurity();
@@ -193,7 +210,7 @@ function renderPatientList() {
                 </svg>
             </div>
             <div class="patient-item-info">
-                <div class="patient-item-name">${patient.patient_name || 'Unknown'}</div>
+                <div class="patient-item-name">${formatDicomNameForDisplay(patient.patient_name) || 'Unknown'}</div>
                 <div class="patient-item-meta">
                     <span>ID: ${patient.patient_id || 'N/A'}</span>
                     <span>DOB: ${formatDateToAustralian(patient.patient_birth_date) || 'N/A'}</span>
@@ -217,7 +234,7 @@ function selectPatient(index) {
     const noPatients = document.getElementById('no-patients');
     const toolbarEl = document.querySelector('.patient-toolbar');
 
-    document.getElementById('selected-patient-name').textContent = selectedPatient.patient_name || 'Unknown';
+    document.getElementById('selected-patient-name').textContent = formatDicomNameForDisplay(selectedPatient.patient_name) || 'Unknown';
     document.getElementById('selected-patient-id').textContent = `ID: ${selectedPatient.patient_id || 'N/A'}`;
     document.getElementById('selected-patient-dob').textContent = `DOB: ${formatDateToAustralian(selectedPatient.patient_birth_date) || 'N/A'}`;
     document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
@@ -316,8 +333,11 @@ function setupButtons() {
     document.getElementById('create-patient-form').addEventListener('submit', (e) => {
         e.preventDefault();
 
+        const lastName = document.getElementById('new-patient-lastname').value;
+        const firstName = document.getElementById('new-patient-firstname').value;
+
         selectedPatient = {
-            patient_name: document.getElementById('new-patient-name').value,
+            patient_name: toDicomName(lastName, firstName),
             patient_id: document.getElementById('new-patient-id').value,
             patient_birth_date: document.getElementById('new-patient-dob').value || null,
             patient_sex: document.getElementById('new-patient-sex').value || null,
@@ -328,7 +348,7 @@ function setupButtons() {
         };
 
         // Update selected patient display
-        document.getElementById('selected-patient-name').textContent = selectedPatient.patient_name;
+        document.getElementById('selected-patient-name').textContent = formatDicomNameForDisplay(selectedPatient.patient_name);
         document.getElementById('selected-patient-id').textContent = `ID: ${selectedPatient.patient_id}`;
         document.getElementById('selected-patient-dob').textContent = `DOB: ${formatDateToAustralian(selectedPatient.patient_birth_date) || 'N/A'}`;
         document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
@@ -652,7 +672,7 @@ async function deleteDestination(name) {
 
 // Summary & Convert
 function updateSummary() {
-    document.getElementById('summary-patient').textContent = selectedPatient?.patient_name || '-';
+    document.getElementById('summary-patient').textContent = formatDicomNameForDisplay(selectedPatient?.patient_name) || '-';
     document.getElementById('summary-patient-id').textContent = selectedPatient?.patient_id || '-';
     document.getElementById('summary-accession').textContent = selectedPatient?.accession_number || '-';
     document.getElementById('summary-study').textContent =
