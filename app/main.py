@@ -1,6 +1,6 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Header, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Header, Depends, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 import shutil
@@ -10,6 +10,7 @@ from typing import Optional
 import uuid
 import os
 import secrets
+import asyncio
 
 from app.config import settings
 from app.models import (
@@ -24,13 +25,14 @@ from app.models import (
     QRStorageConfig,
     QRQueryRequest,
     QRRetrieveRequest,
-    QRTestRequest
+    QRTestRequest,
+    BatchRetrieveRequest
 )
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
 from app.dicom_worklist import WorklistQuery, query_all_worklists, ALL_WORKLIST_AE_TITLES
 from app.dicom_logger import dicom_logger, DicomOperationType
-from app.dicom_qr import QueryRetrieve, get_storage_scp, list_retrieved_studies
+from app.dicom_qr import QueryRetrieve, get_storage_scp, list_retrieved_studies, get_batch_job_manager
 
 app = FastAPI(
     title="Documents to DICOM (D2D)",
@@ -681,6 +683,149 @@ async def get_qr_config():
         "storage_path": str(settings.qr_storage_path),
         "scp_ae_title": settings.qr_scp_ae_title,
         "scp_port": settings.qr_scp_port
+    }
+
+
+# Batch Q/R API endpoints
+@app.post("/api/qr/batch/start")
+async def start_batch_job(request: BatchRetrieveRequest, background_tasks: BackgroundTasks):
+    """
+    Start a batch retrieval job.
+    Returns immediately with a job_id for tracking progress.
+    """
+    try:
+        # Ensure Storage SCP is running if auto_retrieve is enabled
+        if request.auto_retrieve:
+            storage_scp = get_storage_scp()
+            if not storage_scp.is_running():
+                success, msg = storage_scp.start()
+                if not success:
+                    raise HTTPException(status_code=500, detail=f"Failed to start Storage SCP: {msg}")
+
+        # Create the batch job
+        job_manager = get_batch_job_manager()
+        job_id = job_manager.create_job(
+            accession_numbers=request.accession_numbers,
+            source_config=request.source.model_dump(),
+            storage_config=request.storage.model_dump(),
+            auto_retrieve=request.auto_retrieve
+        )
+
+        # Run the job in background
+        async def run_job_task():
+            await job_manager.run_job(job_id)
+
+        background_tasks.add_task(asyncio.create_task, run_job_task())
+
+        return {
+            "success": True,
+            "job_id": job_id,
+            "message": f"Batch job started with {len(request.accession_numbers)} accession numbers",
+            "total_items": len(request.accession_numbers)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/qr/batch/{job_id}/status")
+async def get_batch_job_status(job_id: str):
+    """Get current status of a batch job"""
+    job_manager = get_batch_job_manager()
+    status = job_manager.get_job_status(job_id)
+
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    return status
+
+
+@app.get("/api/qr/batch/{job_id}/progress")
+async def batch_job_progress_stream(job_id: str):
+    """
+    Server-Sent Events (SSE) endpoint for real-time progress updates.
+    Connect to this endpoint to receive live updates about job progress.
+    """
+    job_manager = get_batch_job_manager()
+
+    # Verify job exists
+    status = job_manager.get_job_status(job_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    async def event_generator():
+        queue = job_manager.subscribe(job_id)
+        try:
+            # Send initial status
+            initial_status = job_manager.get_job_status(job_id)
+            if initial_status:
+                yield f"data: {json.dumps({'type': 'initial', **initial_status})}\n\n"
+
+            # Stream events
+            while True:
+                try:
+                    # Wait for events with timeout
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+
+                    # Stop streaming if job is complete
+                    if event.get("type") in ("job_completed", "job_failed", "job_cancelled"):
+                        break
+
+                except asyncio.TimeoutError:
+                    # Send keepalive ping
+                    yield f": keepalive\n\n"
+
+                    # Check if job is still active
+                    current_status = job_manager.get_job_status(job_id)
+                    if current_status and current_status["status"] in ("completed", "failed", "cancelled"):
+                        break
+
+        finally:
+            job_manager.unsubscribe(job_id, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.post("/api/qr/batch/{job_id}/cancel")
+async def cancel_batch_job(job_id: str):
+    """Cancel a running batch job"""
+    job_manager = get_batch_job_manager()
+
+    status = job_manager.get_job_status(job_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    if status["status"] != "running":
+        raise HTTPException(status_code=400, detail=f"Job is not running (status: {status['status']})")
+
+    success = job_manager.cancel_job(job_id)
+
+    if success:
+        return {"success": True, "message": "Cancellation requested"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to cancel job")
+
+
+@app.get("/api/qr/batch/jobs")
+async def list_batch_jobs():
+    """List all batch jobs"""
+    job_manager = get_batch_job_manager()
+    jobs = job_manager.list_jobs()
+    return {
+        "success": True,
+        "jobs": jobs,
+        "count": len(jobs)
     }
 
 

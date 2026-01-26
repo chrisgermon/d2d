@@ -15,12 +15,15 @@ from pynetdicom.sop_class import (
 )
 from pydicom import dcmread
 from pydicom.dataset import Dataset
-from typing import List, Optional, Dict, Callable
+from typing import List, Optional, Dict, Callable, Any
 from datetime import datetime
 from pathlib import Path
 import threading
 import logging
 import os
+import uuid
+import asyncio
+from collections import deque
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -527,3 +530,429 @@ def list_retrieved_studies(storage_path: str = "./qr_storage") -> List[Dict]:
                 })
 
     return studies
+
+
+class BatchJobManager:
+    """
+    Manages batch DICOM Q/R jobs with progress tracking.
+    Provides real-time updates via SSE (Server-Sent Events).
+    """
+
+    def __init__(self):
+        self._jobs: Dict[str, Dict] = {}
+        self._job_lock = threading.Lock()
+        self._event_queues: Dict[str, List[asyncio.Queue]] = {}
+        self._max_jobs_history = 50  # Keep last 50 completed jobs
+
+    def create_job(
+        self,
+        accession_numbers: List[str],
+        source_config: Dict,
+        storage_config: Dict,
+        auto_retrieve: bool = True
+    ) -> str:
+        """Create a new batch job and return job ID"""
+        job_id = str(uuid.uuid4())[:8]
+
+        # Clean and deduplicate accession numbers
+        clean_accessions = list(dict.fromkeys([
+            acc.strip() for acc in accession_numbers if acc.strip()
+        ]))
+
+        with self._job_lock:
+            self._jobs[job_id] = {
+                "job_id": job_id,
+                "status": "pending",
+                "total_items": len(clean_accessions),
+                "queried_items": 0,
+                "retrieved_items": 0,
+                "failed_items": 0,
+                "progress_percent": 0.0,
+                "items": [
+                    {
+                        "accession_number": acc,
+                        "status": "pending",
+                        "study_uid": None,
+                        "patient_name": None,
+                        "patient_id": None,
+                        "study_date": None,
+                        "modality": None,
+                        "num_instances": None,
+                        "error_message": None,
+                        "started_at": None,
+                        "completed_at": None
+                    }
+                    for acc in clean_accessions
+                ],
+                "source_config": source_config,
+                "storage_config": storage_config,
+                "auto_retrieve": auto_retrieve,
+                "created_at": datetime.now().isoformat(),
+                "started_at": None,
+                "completed_at": None,
+                "error_message": None,
+                "cancel_requested": False
+            }
+            self._event_queues[job_id] = []
+
+        logger.info(f"Created batch job {job_id} with {len(clean_accessions)} accession numbers")
+        return job_id
+
+    def get_job_status(self, job_id: str) -> Optional[Dict]:
+        """Get current status of a job"""
+        with self._job_lock:
+            job = self._jobs.get(job_id)
+            if job:
+                # Return a copy without internal fields
+                return {
+                    "job_id": job["job_id"],
+                    "status": job["status"],
+                    "total_items": job["total_items"],
+                    "queried_items": job["queried_items"],
+                    "retrieved_items": job["retrieved_items"],
+                    "failed_items": job["failed_items"],
+                    "progress_percent": job["progress_percent"],
+                    "items": job["items"],
+                    "created_at": job["created_at"],
+                    "started_at": job["started_at"],
+                    "completed_at": job["completed_at"],
+                    "error_message": job["error_message"]
+                }
+        return None
+
+    def list_jobs(self) -> List[Dict]:
+        """List all jobs with summary info"""
+        with self._job_lock:
+            return [
+                {
+                    "job_id": job["job_id"],
+                    "status": job["status"],
+                    "total_items": job["total_items"],
+                    "queried_items": job["queried_items"],
+                    "retrieved_items": job["retrieved_items"],
+                    "failed_items": job["failed_items"],
+                    "progress_percent": job["progress_percent"],
+                    "created_at": job["created_at"],
+                    "completed_at": job["completed_at"]
+                }
+                for job in self._jobs.values()
+            ]
+
+    def cancel_job(self, job_id: str) -> bool:
+        """Request cancellation of a running job"""
+        with self._job_lock:
+            job = self._jobs.get(job_id)
+            if job and job["status"] == "running":
+                job["cancel_requested"] = True
+                logger.info(f"Cancellation requested for job {job_id}")
+                return True
+        return False
+
+    def _update_job(self, job_id: str, updates: Dict):
+        """Update job state and notify subscribers"""
+        with self._job_lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+
+            for key, value in updates.items():
+                if key == "items":
+                    # Handle item updates specially
+                    continue
+                job[key] = value
+
+            # Calculate progress percentage
+            total = job["total_items"]
+            if total > 0:
+                if job["auto_retrieve"]:
+                    # Progress = 50% query + 50% retrieve
+                    query_progress = (job["queried_items"] / total) * 50
+                    retrieve_progress = (job["retrieved_items"] / total) * 50
+                    job["progress_percent"] = round(query_progress + retrieve_progress, 1)
+                else:
+                    # Query only
+                    job["progress_percent"] = round((job["queried_items"] / total) * 100, 1)
+
+        # Send event to all subscribers
+        self._send_event(job_id, {
+            "type": "progress",
+            "job_id": job_id,
+            "status": job["status"],
+            "progress_percent": job["progress_percent"],
+            "queried_items": job["queried_items"],
+            "retrieved_items": job["retrieved_items"],
+            "failed_items": job["failed_items"],
+            "total_items": job["total_items"]
+        })
+
+    def _update_item(self, job_id: str, accession: str, updates: Dict):
+        """Update a single item's status"""
+        with self._job_lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+
+            for item in job["items"]:
+                if item["accession_number"] == accession:
+                    for key, value in updates.items():
+                        item[key] = value
+                    break
+
+        # Send item update event
+        self._send_event(job_id, {
+            "type": "item_update",
+            "job_id": job_id,
+            "accession_number": accession,
+            **updates
+        })
+
+    def _send_event(self, job_id: str, event_data: Dict):
+        """Send event to all subscribed queues"""
+        queues = self._event_queues.get(job_id, [])
+        for queue in queues:
+            try:
+                queue.put_nowait(event_data)
+            except asyncio.QueueFull:
+                pass  # Skip if queue is full
+
+    def subscribe(self, job_id: str) -> asyncio.Queue:
+        """Subscribe to job events"""
+        queue = asyncio.Queue(maxsize=100)
+        with self._job_lock:
+            if job_id in self._event_queues:
+                self._event_queues[job_id].append(queue)
+        return queue
+
+    def unsubscribe(self, job_id: str, queue: asyncio.Queue):
+        """Unsubscribe from job events"""
+        with self._job_lock:
+            if job_id in self._event_queues:
+                try:
+                    self._event_queues[job_id].remove(queue)
+                except ValueError:
+                    pass
+
+    def _cleanup_old_jobs(self):
+        """Remove old completed jobs to prevent memory buildup"""
+        with self._job_lock:
+            completed_jobs = [
+                (job_id, job["completed_at"])
+                for job_id, job in self._jobs.items()
+                if job["status"] in ("completed", "cancelled", "failed") and job["completed_at"]
+            ]
+
+            if len(completed_jobs) > self._max_jobs_history:
+                # Sort by completion time and remove oldest
+                completed_jobs.sort(key=lambda x: x[1])
+                to_remove = len(completed_jobs) - self._max_jobs_history
+                for job_id, _ in completed_jobs[:to_remove]:
+                    del self._jobs[job_id]
+                    if job_id in self._event_queues:
+                        del self._event_queues[job_id]
+
+    async def run_job(self, job_id: str):
+        """Run a batch job (query and optionally retrieve)"""
+        with self._job_lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+            if job["status"] != "pending":
+                return
+            job["status"] = "running"
+            job["started_at"] = datetime.now().isoformat()
+
+        self._send_event(job_id, {
+            "type": "job_started",
+            "job_id": job_id,
+            "status": "running"
+        })
+
+        try:
+            # Create QueryRetrieve instance
+            source = job["source_config"]
+            storage = job["storage_config"]
+
+            qr = QueryRetrieve(
+                host=source["host"],
+                port=source["port"],
+                ae_title=source["ae_title"],
+                calling_ae=source.get("calling_ae", "D2D_QR"),
+                move_destination_ae=storage.get("ae_title", "D2D_STORE")
+            )
+
+            # Phase 1: Query all accession numbers
+            items_to_retrieve = []
+
+            for item in job["items"]:
+                # Check for cancellation
+                if job["cancel_requested"]:
+                    self._handle_cancellation(job_id)
+                    return
+
+                accession = item["accession_number"]
+                self._update_item(job_id, accession, {
+                    "status": "querying",
+                    "started_at": datetime.now().isoformat()
+                })
+
+                try:
+                    # Query for this accession
+                    success, studies, message = qr.find_studies_by_accession([accession])
+
+                    if success and studies:
+                        study = studies[0]
+                        self._update_item(job_id, accession, {
+                            "status": "query_complete",
+                            "study_uid": study.get("study_instance_uid"),
+                            "patient_name": study.get("patient_name"),
+                            "patient_id": study.get("patient_id"),
+                            "study_date": study.get("study_date"),
+                            "modality": study.get("modalities"),
+                            "num_instances": study.get("num_instances")
+                        })
+                        items_to_retrieve.append({
+                            "accession": accession,
+                            "study_uid": study.get("study_instance_uid")
+                        })
+                    else:
+                        self._update_item(job_id, accession, {
+                            "status": "query_failed",
+                            "error_message": f"Study not found: {message}",
+                            "completed_at": datetime.now().isoformat()
+                        })
+                        with self._job_lock:
+                            job["failed_items"] += 1
+
+                except Exception as e:
+                    logger.error(f"Query error for {accession}: {e}")
+                    self._update_item(job_id, accession, {
+                        "status": "query_failed",
+                        "error_message": str(e),
+                        "completed_at": datetime.now().isoformat()
+                    })
+                    with self._job_lock:
+                        job["failed_items"] += 1
+
+                with self._job_lock:
+                    job["queried_items"] += 1
+                self._update_job(job_id, {"queried_items": job["queried_items"]})
+
+                # Small delay to prevent overwhelming the PACS
+                await asyncio.sleep(0.1)
+
+            # Phase 2: Retrieve studies (if auto_retrieve is enabled)
+            if job["auto_retrieve"] and items_to_retrieve:
+                for item_info in items_to_retrieve:
+                    # Check for cancellation
+                    if job["cancel_requested"]:
+                        self._handle_cancellation(job_id)
+                        return
+
+                    accession = item_info["accession"]
+                    study_uid = item_info["study_uid"]
+
+                    if not study_uid:
+                        continue
+
+                    self._update_item(job_id, accession, {
+                        "status": "retrieving"
+                    })
+
+                    try:
+                        success, message = qr.retrieve_study(study_uid)
+
+                        if success:
+                            self._update_item(job_id, accession, {
+                                "status": "completed",
+                                "completed_at": datetime.now().isoformat()
+                            })
+                            with self._job_lock:
+                                job["retrieved_items"] += 1
+                        else:
+                            self._update_item(job_id, accession, {
+                                "status": "failed",
+                                "error_message": message,
+                                "completed_at": datetime.now().isoformat()
+                            })
+                            with self._job_lock:
+                                job["failed_items"] += 1
+
+                    except Exception as e:
+                        logger.error(f"Retrieve error for {accession}: {e}")
+                        self._update_item(job_id, accession, {
+                            "status": "failed",
+                            "error_message": str(e),
+                            "completed_at": datetime.now().isoformat()
+                        })
+                        with self._job_lock:
+                            job["failed_items"] += 1
+
+                    self._update_job(job_id, {"retrieved_items": job["retrieved_items"]})
+
+                    # Small delay between retrievals
+                    await asyncio.sleep(0.2)
+
+            # Job completed
+            with self._job_lock:
+                job["status"] = "completed"
+                job["completed_at"] = datetime.now().isoformat()
+                job["progress_percent"] = 100.0
+
+            self._send_event(job_id, {
+                "type": "job_completed",
+                "job_id": job_id,
+                "status": "completed",
+                "queried_items": job["queried_items"],
+                "retrieved_items": job["retrieved_items"],
+                "failed_items": job["failed_items"]
+            })
+
+        except Exception as e:
+            logger.error(f"Batch job {job_id} failed: {e}")
+            with self._job_lock:
+                job["status"] = "failed"
+                job["error_message"] = str(e)
+                job["completed_at"] = datetime.now().isoformat()
+
+            self._send_event(job_id, {
+                "type": "job_failed",
+                "job_id": job_id,
+                "error_message": str(e)
+            })
+
+        finally:
+            self._cleanup_old_jobs()
+
+    def _handle_cancellation(self, job_id: str):
+        """Handle job cancellation"""
+        with self._job_lock:
+            job = self._jobs.get(job_id)
+            if job:
+                job["status"] = "cancelled"
+                job["completed_at"] = datetime.now().isoformat()
+
+                # Mark remaining pending items as cancelled
+                for item in job["items"]:
+                    if item["status"] in ("pending", "querying", "query_complete", "retrieving"):
+                        item["status"] = "cancelled"
+                        item["completed_at"] = datetime.now().isoformat()
+
+        self._send_event(job_id, {
+            "type": "job_cancelled",
+            "job_id": job_id,
+            "status": "cancelled"
+        })
+
+        logger.info(f"Job {job_id} cancelled")
+
+
+# Global batch job manager instance
+_batch_job_manager: Optional[BatchJobManager] = None
+
+
+def get_batch_job_manager() -> BatchJobManager:
+    """Get or create the global batch job manager instance"""
+    global _batch_job_manager
+    if _batch_job_manager is None:
+        _batch_job_manager = BatchJobManager()
+    return _batch_job_manager

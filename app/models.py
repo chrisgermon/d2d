@@ -103,3 +103,43 @@ class QRRetrieveRequest(BaseModel):
 class QRTestRequest(BaseModel):
     """Request to test connection to PACS"""
     source: QRSourceConfig
+
+
+# Batch Q/R Models
+class BatchItemStatus(BaseModel):
+    """Status of a single accession number in a batch job"""
+    accession_number: str
+    status: str = "pending"  # pending, querying, query_complete, query_failed, retrieving, completed, failed, cancelled
+    study_uid: Optional[str] = None
+    patient_name: Optional[str] = None
+    patient_id: Optional[str] = None
+    study_date: Optional[str] = None
+    modality: Optional[str] = None
+    num_instances: Optional[str] = None
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class BatchJobStatus(BaseModel):
+    """Status of a batch retrieval job"""
+    job_id: str
+    status: str = "pending"  # pending, running, completed, cancelled, failed
+    total_items: int = 0
+    queried_items: int = 0
+    retrieved_items: int = 0
+    failed_items: int = 0
+    progress_percent: float = 0.0
+    items: list[BatchItemStatus] = []
+    created_at: str
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class BatchRetrieveRequest(BaseModel):
+    """Request to start a batch retrieval job"""
+    accession_numbers: list[str] = Field(..., description="List of accession numbers to retrieve")
+    source: QRSourceConfig
+    storage: QRStorageConfig = QRStorageConfig()
+    auto_retrieve: bool = Field(default=True, description="Automatically retrieve after query")
