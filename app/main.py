@@ -26,7 +26,9 @@ from app.models import (
     QRQueryRequest,
     QRRetrieveRequest,
     QRTestRequest,
-    BatchRetrieveRequest
+    BatchRetrieveRequest,
+    DicomUploadResult,
+    DicomUploadResponse
 )
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
@@ -129,6 +131,14 @@ async def settings_page():
     if html_file.exists():
         return FileResponse(html_file)
     return HTMLResponse("<h1>Settings</h1><p>Settings page not found</p>")
+
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page():
+    """Serve the DICOM upload page for external imaging"""
+    html_file = Path("static/upload.html")
+    if html_file.exists():
+        return FileResponse(html_file)
+    return HTMLResponse("<h1>DICOM Upload</h1><p>Upload page not found</p>")
 
 @app.get("/api/network-info")
 async def network_info():
@@ -824,6 +834,246 @@ async def list_batch_jobs():
         "jobs": jobs,
         "count": len(jobs)
     }
+
+
+# DICOM Upload API endpoints
+@app.post("/api/dicom/upload", response_model=DicomUploadResponse)
+async def upload_dicom_files(
+    files: list[UploadFile] = File(...),
+    destination: str = Form(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Upload and send external DICOM files to a destination.
+    Accepts DICOM files from CDs, USBs, or other PACS downloads.
+    """
+    import pydicom
+    from pynetdicom import AE
+    from pynetdicom.sop_class import (
+        SecondaryCaptureImageStorage,
+        CTImageStorage,
+        MRImageStorage,
+        ComputedRadiographyImageStorage,
+        DigitalXRayImageStorageForPresentation,
+        DigitalXRayImageStorageForProcessing,
+        UltrasoundImageStorage,
+        UltrasoundMultiFrameImageStorage,
+        NuclearMedicineImageStorage,
+        PositronEmissionTomographyImageStorage,
+        DigitalMammographyXRayImageStorageForPresentation,
+        DigitalMammographyXRayImageStorageForProcessing,
+        EnhancedCTImageStorage,
+        EnhancedMRImageStorage,
+        XRayAngiographicImageStorage,
+        XRayRadiofluoroscopicImageStorage,
+        EncapsulatedPDFStorage,
+    )
+
+    # Parse destination
+    try:
+        dest = DicomDestination(**json.loads(destination))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid destination: {str(e)}")
+
+    results = []
+    successful = 0
+    failed = 0
+    file_details = []
+
+    # Common SOP classes for medical imaging
+    sop_class_map = {
+        "1.2.840.10008.5.1.4.1.1.7": SecondaryCaptureImageStorage,  # Secondary Capture
+        "1.2.840.10008.5.1.4.1.1.2": CTImageStorage,  # CT
+        "1.2.840.10008.5.1.4.1.1.4": MRImageStorage,  # MR
+        "1.2.840.10008.5.1.4.1.1.1": ComputedRadiographyImageStorage,  # CR
+        "1.2.840.10008.5.1.4.1.1.1.1": DigitalXRayImageStorageForPresentation,  # DX Presentation
+        "1.2.840.10008.5.1.4.1.1.1.1.1": DigitalXRayImageStorageForProcessing,  # DX Processing
+        "1.2.840.10008.5.1.4.1.1.6.1": UltrasoundImageStorage,  # US
+        "1.2.840.10008.5.1.4.1.1.3.1": UltrasoundMultiFrameImageStorage,  # US Multi-frame
+        "1.2.840.10008.5.1.4.1.1.20": NuclearMedicineImageStorage,  # NM
+        "1.2.840.10008.5.1.4.1.1.128": PositronEmissionTomographyImageStorage,  # PET
+        "1.2.840.10008.5.1.4.1.1.1.2": DigitalMammographyXRayImageStorageForPresentation,  # MG Presentation
+        "1.2.840.10008.5.1.4.1.1.1.2.1": DigitalMammographyXRayImageStorageForProcessing,  # MG Processing
+        "1.2.840.10008.5.1.4.1.1.2.1": EnhancedCTImageStorage,  # Enhanced CT
+        "1.2.840.10008.5.1.4.1.1.4.1": EnhancedMRImageStorage,  # Enhanced MR
+        "1.2.840.10008.5.1.4.1.1.12.1": XRayAngiographicImageStorage,  # XA
+        "1.2.840.10008.5.1.4.1.1.12.2": XRayRadiofluoroscopicImageStorage,  # RF
+        "1.2.840.10008.5.1.4.1.1.104.1": EncapsulatedPDFStorage,  # Encapsulated PDF
+    }
+
+    for file in files:
+        result = DicomUploadResult(
+            filename=file.filename,
+            success=False,
+            message=""
+        )
+
+        try:
+            # Read file content
+            content = await file.read()
+
+            # Check if it's a valid DICOM file
+            try:
+                # Save temporarily to read with pydicom
+                temp_path = settings.upload_path / f"temp_{uuid.uuid4()}.dcm"
+                with open(temp_path, "wb") as f:
+                    f.write(content)
+
+                # Read DICOM dataset
+                ds = pydicom.dcmread(str(temp_path))
+
+                # Extract metadata
+                result.patient_id = str(ds.get("PatientID", ""))
+                result.patient_name = str(ds.get("PatientName", ""))
+                result.study_uid = str(ds.get("StudyInstanceUID", ""))
+                result.series_uid = str(ds.get("SeriesInstanceUID", ""))
+                result.sop_uid = str(ds.get("SOPInstanceUID", ""))
+                result.accession_number = str(ds.get("AccessionNumber", ""))
+                result.modality = str(ds.get("Modality", ""))
+
+                # Get SOP Class UID
+                sop_class_uid = str(ds.get("SOPClassUID", ""))
+
+                # Create AE and add appropriate presentation contexts
+                ae = AE()
+                ae.ae_title = dest.calling_ae_title
+
+                # Add the specific SOP class if known, otherwise add common ones
+                if sop_class_uid in sop_class_map:
+                    ae.add_requested_context(sop_class_map[sop_class_uid])
+                else:
+                    # Add common SOP classes as fallback
+                    for sop_class in sop_class_map.values():
+                        ae.add_requested_context(sop_class)
+
+                # Associate with peer
+                assoc = ae.associate(
+                    dest.host,
+                    dest.port,
+                    ae_title=dest.ae_title
+                )
+
+                if assoc.is_established:
+                    # Send C-STORE
+                    status = assoc.send_c_store(ds)
+                    assoc.release()
+
+                    if status:
+                        result.success = True
+                        result.message = f"Successfully sent to {dest.name}"
+                        successful += 1
+                    else:
+                        result.message = "C-STORE request failed"
+                        failed += 1
+                else:
+                    result.message = f"Association rejected by {dest.name}"
+                    failed += 1
+
+                # Clean up temp file
+                temp_path.unlink(missing_ok=True)
+
+            except Exception as e:
+                if 'temp_path' in locals():
+                    temp_path.unlink(missing_ok=True)
+                result.message = f"Invalid DICOM file: {str(e)}"
+                failed += 1
+
+        except Exception as e:
+            result.message = f"Error processing file: {str(e)}"
+            failed += 1
+
+        results.append(result)
+        file_details.append({
+            "filename": result.filename,
+            "success": result.success,
+            "patient_id": result.patient_id,
+            "patient_name": result.patient_name,
+            "study_uid": result.study_uid,
+            "accession_number": result.accession_number,
+            "modality": result.modality
+        })
+
+    # Log the operation
+    overall_success = failed == 0 and successful > 0
+    message = f"Uploaded {successful} of {len(files)} DICOM files to {dest.name}"
+
+    dicom_logger.log_dicom_upload(
+        success=overall_success,
+        message=message,
+        destination_name=dest.name,
+        host=dest.host,
+        port=dest.port,
+        ae_title=dest.ae_title,
+        calling_ae=dest.calling_ae_title,
+        total_files=len(files),
+        successful_files=successful,
+        failed_files=failed,
+        file_details=file_details
+    )
+
+    return DicomUploadResponse(
+        success=overall_success,
+        total_files=len(files),
+        successful=successful,
+        failed=failed,
+        message=message,
+        results=results
+    )
+
+
+@app.post("/api/dicom/validate")
+async def validate_dicom_file(
+    file: UploadFile = File(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Validate a DICOM file and return its metadata.
+    Useful for previewing file contents before upload.
+    """
+    import pydicom
+
+    try:
+        content = await file.read()
+
+        # Save temporarily to read with pydicom
+        temp_path = settings.upload_path / f"temp_{uuid.uuid4()}.dcm"
+        with open(temp_path, "wb") as f:
+            f.write(content)
+
+        try:
+            ds = pydicom.dcmread(str(temp_path))
+
+            metadata = {
+                "valid": True,
+                "filename": file.filename,
+                "patient_name": str(ds.get("PatientName", "")),
+                "patient_id": str(ds.get("PatientID", "")),
+                "patient_birth_date": str(ds.get("PatientBirthDate", "")),
+                "patient_sex": str(ds.get("PatientSex", "")),
+                "study_description": str(ds.get("StudyDescription", "")),
+                "study_date": str(ds.get("StudyDate", "")),
+                "study_instance_uid": str(ds.get("StudyInstanceUID", "")),
+                "series_description": str(ds.get("SeriesDescription", "")),
+                "series_instance_uid": str(ds.get("SeriesInstanceUID", "")),
+                "sop_instance_uid": str(ds.get("SOPInstanceUID", "")),
+                "sop_class_uid": str(ds.get("SOPClassUID", "")),
+                "modality": str(ds.get("Modality", "")),
+                "accession_number": str(ds.get("AccessionNumber", "")),
+                "institution_name": str(ds.get("InstitutionName", "")),
+                "manufacturer": str(ds.get("Manufacturer", "")),
+            }
+
+            return metadata
+
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    except Exception as e:
+        return {
+            "valid": False,
+            "filename": file.filename,
+            "error": str(e)
+        }
 
 
 # Settings API endpoints

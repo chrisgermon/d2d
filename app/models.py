@@ -143,3 +143,28 @@ class BatchRetrieveRequest(BaseModel):
     source: QRSourceConfig
     storage: QRStorageConfig = QRStorageConfig()
     auto_retrieve: bool = Field(default=True, description="Automatically retrieve after query")
+
+
+# DICOM Upload Models
+class DicomUploadResult(BaseModel):
+    """Result for a single DICOM file upload"""
+    filename: str
+    success: bool
+    message: str
+    patient_id: Optional[str] = None
+    patient_name: Optional[str] = None
+    study_uid: Optional[str] = None
+    series_uid: Optional[str] = None
+    sop_uid: Optional[str] = None
+    accession_number: Optional[str] = None
+    modality: Optional[str] = None
+
+
+class DicomUploadResponse(BaseModel):
+    """Response from DICOM upload operation"""
+    success: bool
+    total_files: int
+    successful: int
+    failed: int
+    message: str
+    results: list[DicomUploadResult] = []

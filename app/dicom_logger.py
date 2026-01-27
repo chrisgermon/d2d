@@ -13,6 +13,7 @@ class DicomOperationType(str, Enum):
     WORKLIST_QUERY_ALL = "worklist_query_all"
     DICOM_SEND = "dicom_send"
     DICOM_VERIFY = "dicom_verify"
+    DICOM_UPLOAD = "dicom_upload"
 
 
 class DicomLogger:
@@ -188,6 +189,36 @@ class DicomLogger:
             }
         }
         self.log(DicomOperationType.DICOM_VERIFY, success, message, details)
+
+    def log_dicom_upload(
+        self,
+        success: bool,
+        message: str,
+        destination_name: str,
+        host: str,
+        port: int,
+        ae_title: str,
+        calling_ae: str,
+        total_files: int = 0,
+        successful_files: int = 0,
+        failed_files: int = 0,
+        file_details: Optional[List[Dict]] = None
+    ) -> None:
+        """Log a DICOM upload operation (external DICOM files sent to destination)"""
+        details = {
+            "destination": {
+                "name": destination_name,
+                "host": host,
+                "port": port,
+                "ae_title": ae_title,
+                "calling_ae": calling_ae
+            },
+            "total_files": total_files,
+            "successful_files": successful_files,
+            "failed_files": failed_files,
+            "file_details": file_details or []
+        }
+        self.log(DicomOperationType.DICOM_UPLOAD, success, message, details)
 
     def get_logs(
         self,
