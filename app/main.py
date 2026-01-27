@@ -712,10 +712,7 @@ async def start_batch_job(request: BatchRetrieveRequest, background_tasks: Backg
         )
 
         # Run the job in background
-        async def run_job_task():
-            await job_manager.run_job(job_id)
-
-        background_tasks.add_task(asyncio.create_task, run_job_task())
+        background_tasks.add_task(job_manager.run_job, job_id)
 
         return {
             "success": True,
