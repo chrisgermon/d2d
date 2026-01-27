@@ -60,18 +60,24 @@ class StorageSCP:
 
             # Generate filename from DICOM attributes
             patient_id = str(ds.get("PatientID", "UNKNOWN"))
+            patient_name = str(ds.get("PatientName", ""))
             study_uid = str(ds.get("StudyInstanceUID", ""))
             series_uid = str(ds.get("SeriesInstanceUID", ""))
             sop_uid = str(ds.get("SOPInstanceUID", ""))
             accession = str(ds.get("AccessionNumber", ""))
 
+            # Extract last name from PatientName (format: LastName^FirstName^...)
+            last_name = patient_name.split("^")[0] if patient_name else ""
+
             # Clean filename components
             safe_patient_id = "".join(c for c in patient_id if c.isalnum() or c in "-_")[:20]
             safe_accession = "".join(c for c in accession if c.isalnum() or c in "-_")[:20]
+            safe_last_name = "".join(c for c in last_name if c.isalnum() or c in "-_")[:20]
 
-            # Create subdirectory structure: storage_path/accession/study_uid/
+            # Create subdirectory structure: storage_path/accession-lastname/study_uid/
             if safe_accession:
-                study_dir = self.storage_path / safe_accession / study_uid[:20]
+                folder_name = f"{safe_accession}-{safe_last_name}" if safe_last_name else safe_accession
+                study_dir = self.storage_path / folder_name / study_uid[:20]
             else:
                 study_dir = self.storage_path / safe_patient_id / study_uid[:20]
 
