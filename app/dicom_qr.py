@@ -429,6 +429,8 @@ class QueryRetrieve:
 
             if failed > 0:
                 return False, f"Retrieve completed with errors. Failed: {failed}"
+            elif completed == 0:
+                return False, "Retrieve failed: No images transferred. Check PACS configuration for move destination AE."
             elif warning > 0:
                 return True, f"Retrieve completed with warnings. Warnings: {warning}"
             else:
