@@ -645,10 +645,22 @@ class BatchJobManager:
             ]
 
     def cancel_job(self, job_id: str) -> bool:
-        """Request cancellation of a running job"""
+        """Request cancellation of a pending or running job"""
         with self._job_lock:
             job = self._jobs.get(job_id)
-            if job and job["status"] == "running":
+            if not job:
+                return False
+
+            if job["status"] == "pending":
+                # For pending jobs, cancel immediately since they haven't started
+                job["status"] = "cancelled"
+                job["completed_at"] = datetime.now().isoformat()
+                for item in job["items"]:
+                    if item["status"] == "pending":
+                        item["status"] = "cancelled"
+                logger.info(f"Pending job {job_id} cancelled immediately")
+                return True
+            elif job["status"] == "running":
                 job["cancel_requested"] = True
                 logger.info(f"Cancellation requested for job {job_id}")
                 return True

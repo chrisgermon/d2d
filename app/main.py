@@ -806,8 +806,8 @@ async def cancel_batch_job(job_id: str):
     if status is None:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
-    if status["status"] != "running":
-        raise HTTPException(status_code=400, detail=f"Job is not running (status: {status['status']})")
+    if status["status"] not in ("pending", "running"):
+        raise HTTPException(status_code=400, detail=f"Job cannot be cancelled (status: {status['status']})")
 
     success = job_manager.cancel_job(job_id)
 
