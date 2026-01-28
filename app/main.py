@@ -868,6 +868,18 @@ async def upload_dicom_files(
         XRayRadiofluoroscopicImageStorage,
         EncapsulatedPDFStorage,
     )
+    from pydicom.uid import (
+        ImplicitVRLittleEndian,
+        ExplicitVRLittleEndian,
+        ExplicitVRBigEndian,
+        JPEGLosslessSV1,
+        JPEGLossless,
+        JPEG2000Lossless,
+        JPEG2000,
+        JPEGBaseline8Bit,
+        JPEGExtended12Bit,
+        RLELossless,
+    )
 
     # Parse destination
     try:
@@ -879,6 +891,20 @@ async def upload_dicom_files(
     successful = 0
     failed = 0
     file_details = []
+
+    # Common transfer syntaxes to support compressed and uncompressed DICOM
+    transfer_syntaxes = [
+        ImplicitVRLittleEndian,
+        ExplicitVRLittleEndian,
+        ExplicitVRBigEndian,
+        JPEGLosslessSV1,
+        JPEGLossless,
+        JPEG2000Lossless,
+        JPEG2000,
+        JPEGBaseline8Bit,
+        JPEGExtended12Bit,
+        RLELossless,
+    ]
 
     # Common SOP classes for medical imaging
     sop_class_map = {
@@ -931,20 +957,28 @@ async def upload_dicom_files(
                 result.accession_number = str(ds.get("AccessionNumber", ""))
                 result.modality = str(ds.get("Modality", ""))
 
-                # Get SOP Class UID
+                # Get SOP Class UID and Transfer Syntax
                 sop_class_uid = str(ds.get("SOPClassUID", ""))
+                file_transfer_syntax = str(ds.file_meta.TransferSyntaxUID) if hasattr(ds, 'file_meta') and hasattr(ds.file_meta, 'TransferSyntaxUID') else None
 
-                # Create AE and add appropriate presentation contexts
+                # Create AE and add appropriate presentation contexts with transfer syntaxes
                 ae = AE()
                 ae.ae_title = dest.calling_ae_title
 
+                # Build transfer syntax list - prioritize file's own syntax
+                ts_list = list(transfer_syntaxes)
+                if file_transfer_syntax and file_transfer_syntax not in ts_list:
+                    ts_list.insert(0, file_transfer_syntax)
+
                 # Add the specific SOP class if known, otherwise add common ones
                 if sop_class_uid in sop_class_map:
-                    ae.add_requested_context(sop_class_map[sop_class_uid])
+                    ae.add_requested_context(sop_class_map[sop_class_uid], ts_list)
                 else:
-                    # Add common SOP classes as fallback
+                    # Try adding context for the exact SOP class UID from file
+                    ae.add_requested_context(sop_class_uid, ts_list)
+                    # Also add common SOP classes as fallback
                     for sop_class in sop_class_map.values():
-                        ae.add_requested_context(sop_class)
+                        ae.add_requested_context(sop_class, ts_list)
 
                 # Associate with peer
                 assoc = ae.associate(
