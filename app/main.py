@@ -12,6 +12,14 @@ import os
 import secrets
 import asyncio
 
+# Import pylibjpeg to register it as a pixel data handler for pydicom
+# This enables decompression of JPEG Lossless and other compressed DICOM files
+try:
+    import pylibjpeg
+    import pylibjpeg.libjpeg  # Ensure the libjpeg plugin is loaded
+except ImportError:
+    pass  # pylibjpeg not installed, compressed DICOM decompression will fail
+
 from app.config import settings
 from app.models import (
     DicomMetadata,
