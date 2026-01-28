@@ -4,6 +4,7 @@ let selectedFiles = [];
 let selectedDestination = null;
 let destinations = [];
 let currentStep = 1;
+let validatedFiles = []; // Store validation results
 
 // API Key Management
 function getStoredApiKey() {
@@ -84,7 +85,7 @@ function updateStepIndicator(step) {
     });
 }
 
-function goToStep(step) {
+async function goToStep(step) {
     updateStepIndicator(step);
 
     // Show/hide sections based on step
@@ -98,7 +99,8 @@ function goToStep(step) {
     }
 
     if (step === 3) {
-        updateSummary();
+        // Validate files and show preview
+        await validateAndPreviewFiles();
     }
 
     // Scroll to the relevant section
@@ -144,6 +146,9 @@ function handleFilesSelected(files) {
             selectedFiles.push(file);
         }
     }
+
+    // Reset validated files when new files added
+    validatedFiles = [];
 
     renderFilesList();
     updateContinueButton();
@@ -206,12 +211,14 @@ function formatFileSize(bytes) {
 
 function removeFile(index) {
     selectedFiles.splice(index, 1);
+    validatedFiles = []; // Reset validation
     renderFilesList();
     updateContinueButton();
 }
 
 function clearAllFiles() {
     selectedFiles = [];
+    validatedFiles = [];
     document.getElementById('file-input').value = '';
     renderFilesList();
     updateContinueButton();
@@ -316,7 +323,8 @@ function renderSavedDestinations() {
         <div class="saved-destination">
             <div class="saved-destination-info">
                 <h4>${dest.name}</h4>
-                <p><strong>AE Title:</strong> ${dest.ae_title}</p>
+                <p><strong>Destination AE:</strong> ${dest.ae_title}</p>
+                <p><strong>Calling AE:</strong> ${dest.calling_ae_title || 'D2D_SCU'}</p>
                 <p><strong>Host:</strong> ${dest.host}:${dest.port}</p>
             </div>
             <button onclick="deleteDestination('${dest.name}')">Delete</button>
@@ -333,6 +341,7 @@ function updateDestinationInfo() {
         document.getElementById('dest-info-ae').textContent = selectedDestination.ae_title;
         document.getElementById('dest-info-host').textContent = selectedDestination.host;
         document.getElementById('dest-info-port').textContent = selectedDestination.port;
+        document.getElementById('dest-info-calling-ae').textContent = selectedDestination.calling_ae_title || 'D2D_SCU';
         infoEl.style.display = 'block';
         continueBtn.disabled = false;
     } else {
@@ -352,7 +361,7 @@ async function saveDestination() {
         ae_title: document.getElementById('dest-ae-title').value,
         host: document.getElementById('dest-host').value,
         port: parseInt(document.getElementById('dest-port').value),
-        calling_ae_title: document.getElementById('dest-calling-ae').value
+        calling_ae_title: document.getElementById('dest-calling-ae').value || 'D2D_SCU'
     };
 
     showLoading('Saving destination...');
@@ -383,7 +392,7 @@ async function testConnection() {
         ae_title: document.getElementById('dest-ae-title').value,
         host: document.getElementById('dest-host').value,
         port: parseInt(document.getElementById('dest-port').value),
-        calling_ae_title: document.getElementById('dest-calling-ae').value
+        calling_ae_title: document.getElementById('dest-calling-ae').value || 'D2D_SCU'
     };
 
     showLoading('Testing connection...');
@@ -431,37 +440,168 @@ async function deleteDestination(name) {
     }
 }
 
+// File Validation and Preview
+async function validateAndPreviewFiles() {
+    const validationLoading = document.getElementById('validation-loading');
+    const previewEl = document.getElementById('dicom-preview');
+    const summaryEl = document.getElementById('review-summary');
+    const actionsEl = document.getElementById('upload-actions');
+
+    // Show loading
+    validationLoading.style.display = 'flex';
+    previewEl.style.display = 'none';
+    summaryEl.style.display = 'none';
+    actionsEl.style.display = 'none';
+
+    validatedFiles = [];
+
+    // Validate each file
+    for (const file of selectedFiles) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await apiFetch('/api/dicom/validate', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            validatedFiles.push({
+                file: file,
+                ...data
+            });
+        } catch (error) {
+            validatedFiles.push({
+                file: file,
+                valid: false,
+                filename: file.name,
+                error: error.message
+            });
+        }
+    }
+
+    // Hide loading
+    validationLoading.style.display = 'none';
+
+    // Render preview table
+    renderPreviewTable();
+
+    // Update summary
+    updateSummary();
+
+    // Show UI elements
+    previewEl.style.display = 'block';
+    summaryEl.style.display = 'block';
+    actionsEl.style.display = 'flex';
+}
+
+function renderPreviewTable() {
+    const tableBody = document.getElementById('preview-table-body');
+    const validCount = validatedFiles.filter(f => f.valid).length;
+    const invalidCount = validatedFiles.filter(f => !f.valid).length;
+
+    document.getElementById('valid-count').textContent = validCount;
+    document.getElementById('invalid-count').textContent = invalidCount;
+
+    tableBody.innerHTML = validatedFiles.map(f => {
+        const statusIcon = f.valid
+            ? `<span class="status-icon status-valid" title="Valid DICOM">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+               </span>`
+            : `<span class="status-icon status-invalid" title="${f.error || 'Invalid DICOM'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+               </span>`;
+
+        const formatDate = (dateStr) => {
+            if (!dateStr || dateStr.length !== 8) return dateStr || '-';
+            return `${dateStr.substring(6,8)}/${dateStr.substring(4,6)}/${dateStr.substring(0,4)}`;
+        };
+
+        const formatName = (name) => {
+            if (!name) return '-';
+            // Convert DICOM format (LASTNAME^FIRSTNAME) to display format
+            const parts = name.split('^');
+            if (parts.length >= 2) {
+                return `${parts[1]} ${parts[0]}`;
+            }
+            return name;
+        };
+
+        return `
+            <tr class="${f.valid ? '' : 'row-invalid'}">
+                <td>${statusIcon}</td>
+                <td class="filename-cell" title="${f.filename}">${truncateFilename(f.filename, 25)}</td>
+                <td>${f.valid ? formatName(f.patient_name) : '-'}</td>
+                <td>${f.valid ? (f.patient_id || '-') : '-'}</td>
+                <td>${f.valid ? (f.study_description || '-') : (f.error || 'Invalid')}</td>
+                <td>${f.valid ? (f.modality || '-') : '-'}</td>
+                <td>${f.valid ? formatDate(f.study_date) : '-'}</td>
+                <td>${f.valid ? (f.accession_number || '-') : '-'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 // Summary
 function updateSummary() {
-    document.getElementById('summary-files').textContent = `${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''}`;
+    const validCount = validatedFiles.filter(f => f.valid).length;
+
+    document.getElementById('summary-files').textContent = `${validCount} valid file${validCount !== 1 ? 's' : ''} (${selectedFiles.length} total)`;
     document.getElementById('summary-destination').textContent = selectedDestination?.name || '-';
+    document.getElementById('summary-calling-ae').textContent = selectedDestination?.calling_ae_title || 'D2D_SCU';
+    document.getElementById('summary-dest-ae').textContent = selectedDestination?.ae_title || '-';
     document.getElementById('summary-dest-details').textContent = selectedDestination
-        ? `${selectedDestination.ae_title} @ ${selectedDestination.host}:${selectedDestination.port}`
+        ? `${selectedDestination.host}:${selectedDestination.port}`
         : '-';
+
+    // Disable upload button if no valid files
+    const uploadBtn = document.getElementById('upload-send-btn');
+    uploadBtn.disabled = validCount === 0;
+    if (validCount === 0) {
+        uploadBtn.textContent = 'No Valid Files to Upload';
+    } else {
+        uploadBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            Upload & Send ${validCount} File${validCount !== 1 ? 's' : ''} to PACS
+        `;
+    }
 }
 
 // Upload and Send
 async function uploadAndSend() {
-    if (selectedFiles.length === 0 || !selectedDestination) {
-        showError('Please select files and a destination');
+    const validFiles = validatedFiles.filter(f => f.valid);
+
+    if (validFiles.length === 0 || !selectedDestination) {
+        showError('No valid DICOM files to upload');
         return;
     }
 
     showProgress();
-    updateProgress(0, selectedFiles.length, 'Preparing upload...');
+    updateProgress(0, validFiles.length, 'Preparing upload...');
 
     try {
         const formData = new FormData();
 
-        // Add all files
-        for (const file of selectedFiles) {
-            formData.append('files', file);
+        // Add only valid files
+        for (const vf of validFiles) {
+            formData.append('files', vf.file);
         }
 
         // Add destination as JSON string
         formData.append('destination', JSON.stringify(selectedDestination));
 
-        updateProgress(0, selectedFiles.length, 'Uploading files to server...');
+        updateProgress(0, validFiles.length, 'Uploading files to server...');
 
         const response = await apiFetch('/api/dicom/upload', {
             method: 'POST',
@@ -578,6 +718,7 @@ function showResults(data) {
 
 function resetForm() {
     selectedFiles = [];
+    validatedFiles = [];
     document.getElementById('file-input').value = '';
 
     // Reset UI
