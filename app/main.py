@@ -957,6 +957,18 @@ async def upload_dicom_files(
                 result.accession_number = str(ds.get("AccessionNumber", ""))
                 result.modality = str(ds.get("Modality", ""))
 
+                # Remap non-standard modality codes to standard DICOM modalities
+                # CX and PX are not standard - map to CR (Computed Radiography)
+                modality_remap = {
+                    "CX": "CR",  # Chest X-ray -> Computed Radiography
+                    "PX": "DX",  # Plain X-ray -> Digital Radiography
+                }
+                original_modality = result.modality
+                if original_modality in modality_remap:
+                    new_modality = modality_remap[original_modality]
+                    ds.Modality = new_modality
+                    result.modality = new_modality
+
                 # Get SOP Class UID
                 sop_class_uid = str(ds.get("SOPClassUID", ""))
 
