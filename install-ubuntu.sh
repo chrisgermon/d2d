@@ -108,6 +108,9 @@ step_install_dependencies() {
     print_info "Installing Python 3 and development tools..."
     apt install -y python3 python3-venv python3-pip python3-dev build-essential
 
+    print_info "Installing GDCM for JPEG Lossless DICOM decompression..."
+    apt install -y python3-gdcm
+
     print_info "Installing Poppler (PDF processing)..."
     apt install -y poppler-utils
 
@@ -177,7 +180,8 @@ step_setup_python() {
     cd "$INSTALL_DIR"
 
     print_info "Creating Python virtual environment..."
-    python3 -m venv venv
+    # Use --system-site-packages to access system python3-gdcm for DICOM decompression
+    python3 -m venv --system-site-packages venv
 
     print_info "Activating virtual environment..."
     source venv/bin/activate
