@@ -976,9 +976,10 @@ async def upload_dicom_files(
                     ds.SOPClassUID = secondary_capture_uid
                     if hasattr(ds, 'file_meta'):
                         ds.file_meta.MediaStorageSOPClassUID = secondary_capture_uid
-                elif original_modality == "OT" and original_sop_class not in sop_class_map:
-                    # OT modality with non-standard SOP Class - convert to Secondary Capture
-                    # This ensures PACS systems will accept the image (fixes 0xA700 errors)
+                elif original_modality == "OT" and original_sop_class != secondary_capture_uid:
+                    # OT modality should always use Secondary Capture SOP Class
+                    # Some PACS systems reject OT with other SOP Classes (even standard ones)
+                    # because the modality/SOP Class combination is inconsistent
                     ds.SOPClassUID = secondary_capture_uid
                     if hasattr(ds, 'file_meta'):
                         ds.file_meta.MediaStorageSOPClassUID = secondary_capture_uid
