@@ -958,16 +958,21 @@ async def upload_dicom_files(
                 result.modality = str(ds.get("Modality", ""))
 
                 # Remap non-standard modality codes to standard DICOM modalities
-                # CX and PX are not standard - map to CR (Computed Radiography)
+                # CX and PX are not standard - map to OT (Other) with Secondary Capture SOP Class
+                # Secondary Capture is universally accepted by all PACS systems
                 modality_remap = {
-                    "CX": "CR",  # Chest X-ray -> Computed Radiography
-                    "PX": "DX",  # Plain X-ray -> Digital Radiography
+                    "CX": "OT",  # Chest X-ray -> Other (with Secondary Capture)
+                    "PX": "OT",  # Plain X-ray -> Other (with Secondary Capture)
                 }
                 original_modality = result.modality
                 if original_modality in modality_remap:
                     new_modality = modality_remap[original_modality]
                     ds.Modality = new_modality
                     result.modality = new_modality
+                    # Change SOP Class to Secondary Capture for maximum compatibility
+                    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.7"  # Secondary Capture Image Storage
+                    if hasattr(ds, 'file_meta'):
+                        ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
 
                 # Get SOP Class UID
                 sop_class_uid = str(ds.get("SOPClassUID", ""))
