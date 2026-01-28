@@ -874,9 +874,17 @@ async def upload_dicom_files(
         ExplicitVRBigEndian,
     )
 
-    # Parse destination
+    # Validate and parse destination
+    if not destination or destination.strip() == "" or destination == "null" or destination == "undefined":
+        raise HTTPException(status_code=400, detail="No destination selected. Please select a destination before uploading.")
+
     try:
-        dest = DicomDestination(**json.loads(destination))
+        dest_data = json.loads(destination)
+        if not dest_data:
+            raise HTTPException(status_code=400, detail="No destination selected. Please select a destination before uploading.")
+        dest = DicomDestination(**dest_data)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid destination format: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid destination: {str(e)}")
 

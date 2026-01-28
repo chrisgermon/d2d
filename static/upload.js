@@ -741,8 +741,19 @@ function updateSummary() {
 async function uploadAndSend() {
     const validFiles = validatedFiles.filter(f => f.valid);
 
-    if (validFiles.length === 0 || !selectedDestination) {
+    if (validFiles.length === 0) {
         showError('No valid DICOM files to upload');
+        return;
+    }
+
+    if (!selectedDestination) {
+        showError('No destination selected. Please select a destination before uploading.');
+        return;
+    }
+
+    // Validate destination has required fields
+    if (!selectedDestination.ae_title || !selectedDestination.host || !selectedDestination.port) {
+        showError('Invalid destination. Please select a valid destination with AE Title, Host, and Port.');
         return;
     }
 
@@ -758,7 +769,9 @@ async function uploadAndSend() {
         }
 
         // Add destination as JSON string
-        formData.append('destination', JSON.stringify(selectedDestination));
+        const destJson = JSON.stringify(selectedDestination);
+        console.log('Sending destination:', destJson);  // Debug log
+        formData.append('destination', destJson);
 
         updateProgress(0, validFiles.length, 'Uploading files to server...');
 
