@@ -872,13 +872,6 @@ async def upload_dicom_files(
         ImplicitVRLittleEndian,
         ExplicitVRLittleEndian,
         ExplicitVRBigEndian,
-        JPEGLosslessSV1,
-        JPEGLossless,
-        JPEG2000Lossless,
-        JPEG2000,
-        JPEGBaseline8Bit,
-        JPEGExtended12Bit,
-        RLELossless,
     )
 
     # Parse destination
@@ -891,20 +884,6 @@ async def upload_dicom_files(
     successful = 0
     failed = 0
     file_details = []
-
-    # Common transfer syntaxes to support compressed and uncompressed DICOM
-    transfer_syntaxes = [
-        ImplicitVRLittleEndian,
-        ExplicitVRLittleEndian,
-        ExplicitVRBigEndian,
-        JPEGLosslessSV1,
-        JPEGLossless,
-        JPEG2000Lossless,
-        JPEG2000,
-        JPEGBaseline8Bit,
-        JPEGExtended12Bit,
-        RLELossless,
-    ]
 
     # Common SOP classes for medical imaging
     sop_class_map = {
@@ -957,28 +936,51 @@ async def upload_dicom_files(
                 result.accession_number = str(ds.get("AccessionNumber", ""))
                 result.modality = str(ds.get("Modality", ""))
 
-                # Get SOP Class UID and Transfer Syntax
+                # Get SOP Class UID
                 sop_class_uid = str(ds.get("SOPClassUID", ""))
-                file_transfer_syntax = str(ds.file_meta.TransferSyntaxUID) if hasattr(ds, 'file_meta') and hasattr(ds.file_meta, 'TransferSyntaxUID') else None
 
-                # Create AE and add appropriate presentation contexts with transfer syntaxes
+                # Decompress DICOM data if it uses a compressed transfer syntax
+                # This ensures compatibility with PACS that don't support compressed formats
+                original_ts = None
+                if hasattr(ds, 'file_meta') and hasattr(ds.file_meta, 'TransferSyntaxUID'):
+                    original_ts = ds.file_meta.TransferSyntaxUID
+                    # Check if it's a compressed transfer syntax (not Implicit/Explicit VR Little/Big Endian)
+                    uncompressed_syntaxes = [
+                        ImplicitVRLittleEndian,
+                        ExplicitVRLittleEndian,
+                        ExplicitVRBigEndian,
+                    ]
+                    if original_ts not in uncompressed_syntaxes:
+                        try:
+                            # Decompress to uncompressed format
+                            ds.decompress()
+                            # Update the transfer syntax to Explicit VR Little Endian
+                            ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+                            logger.info(f"Decompressed DICOM from {original_ts} to {ExplicitVRLittleEndian}")
+                        except Exception as decomp_err:
+                            logger.warning(f"Could not decompress DICOM: {decomp_err}")
+                            # Continue with original - might still work
+
+                # Create AE and add appropriate presentation contexts
                 ae = AE()
                 ae.ae_title = dest.calling_ae_title
 
-                # Build transfer syntax list - prioritize file's own syntax
-                ts_list = list(transfer_syntaxes)
-                if file_transfer_syntax and file_transfer_syntax not in ts_list:
-                    ts_list.insert(0, file_transfer_syntax)
+                # Use uncompressed transfer syntaxes for better compatibility
+                compatible_ts_list = [
+                    ExplicitVRLittleEndian,
+                    ImplicitVRLittleEndian,
+                    ExplicitVRBigEndian,
+                ]
 
                 # Add the specific SOP class if known, otherwise add common ones
                 if sop_class_uid in sop_class_map:
-                    ae.add_requested_context(sop_class_map[sop_class_uid], ts_list)
+                    ae.add_requested_context(sop_class_map[sop_class_uid], compatible_ts_list)
                 else:
                     # Try adding context for the exact SOP class UID from file
-                    ae.add_requested_context(sop_class_uid, ts_list)
+                    ae.add_requested_context(sop_class_uid, compatible_ts_list)
                     # Also add common SOP classes as fallback
                     for sop_class in sop_class_map.values():
-                        ae.add_requested_context(sop_class, ts_list)
+                        ae.add_requested_context(sop_class, compatible_ts_list)
 
                 # Associate with peer
                 assoc = ae.associate(
