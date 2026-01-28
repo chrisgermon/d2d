@@ -950,6 +950,7 @@ async def upload_dicom_files(
                 # Decompress DICOM data if it uses a compressed transfer syntax
                 # This ensures compatibility with PACS that don't support compressed formats
                 original_ts = None
+                needs_decompression = False
                 if hasattr(ds, 'file_meta') and hasattr(ds.file_meta, 'TransferSyntaxUID'):
                     original_ts = ds.file_meta.TransferSyntaxUID
                     # Check if it's a compressed transfer syntax (not Implicit/Explicit VR Little/Big Endian)
@@ -959,14 +960,29 @@ async def upload_dicom_files(
                         ExplicitVRBigEndian,
                     ]
                     if original_ts not in uncompressed_syntaxes:
+                        needs_decompression = True
                         try:
-                            # Decompress to uncompressed format
+                            # Decompress to uncompressed format (requires pylibjpeg for JPEG)
                             ds.decompress()
                             # Update the transfer syntax to Explicit VR Little Endian
                             ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-                        except Exception:
-                            # Could not decompress - continue with original transfer syntax
-                            pass
+                            needs_decompression = False  # Successfully decompressed
+                        except Exception as decomp_err:
+                            # Decompression failed - cannot send compressed file to PACS
+                            result.message = f"Could not decompress from {original_ts.name}: {str(decomp_err)}"
+                            failed += 1
+                            temp_path.unlink(missing_ok=True)
+                            results.append(result)
+                            file_details.append({
+                                "filename": result.filename,
+                                "success": result.success,
+                                "patient_id": result.patient_id,
+                                "patient_name": result.patient_name,
+                                "study_uid": result.study_uid,
+                                "accession_number": result.accession_number,
+                                "modality": result.modality
+                            })
+                            continue
 
                 # Create AE and add appropriate presentation contexts
                 ae = AE()
