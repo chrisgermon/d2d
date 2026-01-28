@@ -965,14 +965,23 @@ async def upload_dicom_files(
                     "PX": "OT",  # Plain X-ray -> Other (with Secondary Capture)
                 }
                 original_modality = result.modality
+                original_sop_class = str(ds.get("SOPClassUID", ""))
+                secondary_capture_uid = "1.2.840.10008.5.1.4.1.1.7"  # Secondary Capture Image Storage
+
                 if original_modality in modality_remap:
                     new_modality = modality_remap[original_modality]
                     ds.Modality = new_modality
                     result.modality = new_modality
                     # Change SOP Class to Secondary Capture for maximum compatibility
-                    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.7"  # Secondary Capture Image Storage
+                    ds.SOPClassUID = secondary_capture_uid
                     if hasattr(ds, 'file_meta'):
-                        ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
+                        ds.file_meta.MediaStorageSOPClassUID = secondary_capture_uid
+                elif original_modality == "OT" and original_sop_class not in sop_class_map:
+                    # OT modality with non-standard SOP Class - convert to Secondary Capture
+                    # This ensures PACS systems will accept the image (fixes 0xA700 errors)
+                    ds.SOPClassUID = secondary_capture_uid
+                    if hasattr(ds, 'file_meta'):
+                        ds.file_meta.MediaStorageSOPClassUID = secondary_capture_uid
 
                 # Get SOP Class UID
                 sop_class_uid = str(ds.get("SOPClassUID", ""))
