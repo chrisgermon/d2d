@@ -964,10 +964,9 @@ async def upload_dicom_files(
                             ds.decompress()
                             # Update the transfer syntax to Explicit VR Little Endian
                             ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-                            logger.info(f"Decompressed DICOM from {original_ts} to {ExplicitVRLittleEndian}")
-                        except Exception as decomp_err:
-                            logger.warning(f"Could not decompress DICOM: {decomp_err}")
-                            # Continue with original - might still work
+                        except Exception:
+                            # Could not decompress - continue with original transfer syntax
+                            pass
 
                 # Create AE and add appropriate presentation contexts
                 ae = AE()
