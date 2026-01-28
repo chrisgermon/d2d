@@ -1043,11 +1043,18 @@ async def upload_dicom_files(
                     assoc.release()
 
                     if status:
-                        result.success = True
-                        result.message = f"Successfully sent to {dest.name}"
-                        successful += 1
+                        # Check the actual status code (0x0000 = Success)
+                        status_code = status.Status
+                        if status_code == 0x0000:
+                            result.success = True
+                            result.message = f"Successfully sent to {dest.name}"
+                            successful += 1
+                        else:
+                            # PACS returned a non-success status
+                            result.message = f"PACS returned status 0x{status_code:04X} - check PACS logs"
+                            failed += 1
                     else:
-                        result.message = "C-STORE request failed"
+                        result.message = "C-STORE request failed - no response"
                         failed += 1
                 else:
                     result.message = f"Association rejected by {dest.name}"
