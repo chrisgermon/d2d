@@ -180,7 +180,7 @@
                             <span id="dest-info-name">-</span>
                         </div>
                         <div class="info-item">
-                            <label>AE Title</label>
+                            <label>Destination AE Title</label>
                             <span id="dest-info-ae">-</span>
                         </div>
                         <div class="info-item">
@@ -190,6 +190,10 @@
                         <div class="info-item">
                             <label>Port</label>
                             <span id="dest-info-port">-</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <label>Calling AE Title (From)</label>
+                            <span id="dest-info-calling-ae">-</span>
                         </div>
                     </div>
                 </div>
@@ -224,8 +228,43 @@
                     <h2>Step 3: Review & Send</h2>
                 </div>
 
-                <div class="review-summary">
-                    <h3>Upload Summary</h3>
+                <!-- Validation Loading State -->
+                <div id="validation-loading" class="loading-state" style="display: none;">
+                    <div class="spinner-small"></div>
+                    <span>Validating DICOM files and reading metadata...</span>
+                </div>
+
+                <!-- DICOM Preview Table -->
+                <div id="dicom-preview" style="display: none;">
+                    <div class="preview-header">
+                        <h3>DICOM File Details</h3>
+                        <div class="preview-stats">
+                            <span class="stat-badge stat-valid"><span id="valid-count">0</span> Valid</span>
+                            <span class="stat-badge stat-invalid"><span id="invalid-count">0</span> Invalid</span>
+                        </div>
+                    </div>
+                    <div class="preview-table-container">
+                        <table class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Filename</th>
+                                    <th>Patient Name</th>
+                                    <th>Patient ID</th>
+                                    <th>Study Description</th>
+                                    <th>Modality</th>
+                                    <th>Study Date</th>
+                                    <th>Accession</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="review-summary" id="review-summary" style="display: none;">
+                    <h3>Destination</h3>
                     <div class="summary-grid">
                         <div class="summary-item">
                             <label>Files to Upload</label>
@@ -235,14 +274,22 @@
                             <label>Destination</label>
                             <span id="summary-destination">-</span>
                         </div>
+                        <div class="summary-item">
+                            <label>Calling AE Title</label>
+                            <span id="summary-calling-ae">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <label>Destination AE Title</label>
+                            <span id="summary-dest-ae">-</span>
+                        </div>
                         <div class="summary-item full-width">
-                            <label>Destination Details</label>
+                            <label>Host:Port</label>
                             <span id="summary-dest-details">-</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="action-buttons">
+                <div class="action-buttons" id="upload-actions" style="display: none;">
                     <button class="btn btn-secondary" onclick="goToStep(2)">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="19" y1="12" x2="5" y2="12"/>

@@ -1521,6 +1521,123 @@ body {
     color: var(--text-muted);
 }
 
+/* Preview Table Styles */
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.preview-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.preview-stats {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.stat-badge.stat-valid {
+    background: var(--success-light);
+    color: var(--success-color);
+}
+
+.stat-badge.stat-invalid {
+    background: var(--error-light);
+    color: var(--error-color);
+}
+
+.preview-table-container {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.5rem;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.preview-table th {
+    background: var(--bg-primary);
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.preview-table td {
+    padding: 0.625rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.preview-table tr:last-child td {
+    border-bottom: none;
+}
+
+.preview-table tr:hover {
+    background: var(--bg-primary);
+}
+
+.preview-table tr.row-invalid {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.preview-table tr.row-invalid:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.filename-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.status-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.status-icon.status-valid {
+    color: var(--success-color);
+}
+
+.status-icon.status-invalid {
+    color: var(--error-color);
+}
+
+/* Info Grid Full Width */
+.info-item.full-width {
+    grid-column: 1 / -1;
+}
+
 /* Notification animation */
 @keyframes slideIn {
     from {
