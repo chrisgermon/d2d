@@ -1,9 +1,11 @@
 FROM python:3.11-slim
 
 # Install system dependencies
+# python3-gdcm provides GDCM library for JPEG Lossless DICOM decompression
 RUN apt-get update && apt-get install -y \
     poppler-utils \
     libmagic1 \
+    python3-gdcm \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

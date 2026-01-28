@@ -6,6 +6,7 @@ pynetdicom==2.1.1
 pylibjpeg>=2.0.0
 pylibjpeg-libjpeg>=2.0.0
 numpy>=1.24.0
+# GDCM is installed via apt in the Dockerfile for JPEG Lossless support
 pillow==11.0.0
 pypdf2==3.0.1
 pdf2image==1.17.0
