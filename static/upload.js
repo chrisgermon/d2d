@@ -115,8 +115,28 @@ async function goToStep(step) {
 function setupUploadArea() {
     const uploadArea = document.getElementById('upload-area');
     const fileInput = document.getElementById('file-input');
+    const folderInput = document.getElementById('folder-input');
+    const selectFilesBtn = document.getElementById('select-files-btn');
+    const selectFolderBtn = document.getElementById('select-folder-btn');
 
-    uploadArea.addEventListener('click', () => fileInput.click());
+    // Prevent default click on upload area (we have buttons now)
+    uploadArea.addEventListener('click', (e) => {
+        // Only trigger if clicking directly on upload area, not buttons
+        if (e.target === uploadArea || e.target.closest('.upload-content') && !e.target.closest('button')) {
+            fileInput.click();
+        }
+    });
+
+    // Button click handlers
+    selectFilesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+    });
+
+    selectFolderBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        folderInput.click();
+    });
 
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -127,15 +147,154 @@ function setupUploadArea() {
         uploadArea.classList.remove('dragover');
     });
 
-    uploadArea.addEventListener('drop', (e) => {
+    // Handle drop - support both files and folders
+    uploadArea.addEventListener('drop', async (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
-        handleFilesSelected(e.dataTransfer.files);
+
+        const items = e.dataTransfer.items;
+        if (items) {
+            // Use DataTransferItemList to handle folders
+            await handleDroppedItems(items);
+        } else {
+            // Fallback for browsers that don't support items
+            handleFilesSelected(e.dataTransfer.files);
+        }
     });
 
     fileInput.addEventListener('change', (e) => {
         handleFilesSelected(e.target.files);
     });
+
+    folderInput.addEventListener('change', (e) => {
+        handleFolderSelected(e.target.files);
+    });
+}
+
+// Handle dropped items (files or folders)
+async function handleDroppedItems(items) {
+    const files = [];
+    const entries = [];
+
+    // Get all entries first
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.webkitGetAsEntry) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+                entries.push(entry);
+            }
+        } else if (item.kind === 'file') {
+            files.push(item.getAsFile());
+        }
+    }
+
+    if (entries.length > 0) {
+        // Show scanning progress
+        showFolderScanProgress();
+
+        // Process entries (may include folders)
+        for (const entry of entries) {
+            await processEntry(entry, files);
+        }
+
+        hideFolderScanProgress();
+    }
+
+    if (files.length > 0) {
+        handleFilesSelected(files);
+    }
+}
+
+// Recursively process file system entries
+async function processEntry(entry, files) {
+    if (entry.isFile) {
+        const file = await getFileFromEntry(entry);
+        if (file) {
+            files.push(file);
+            updateScanCount(files.length);
+        }
+    } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const entries = await readAllDirectoryEntries(reader);
+        for (const childEntry of entries) {
+            await processEntry(childEntry, files);
+        }
+    }
+}
+
+// Get file from FileSystemFileEntry
+function getFileFromEntry(entry) {
+    return new Promise((resolve) => {
+        entry.file(
+            (file) => resolve(file),
+            () => resolve(null) // Ignore errors
+        );
+    });
+}
+
+// Read all entries from a directory (handles pagination)
+function readAllDirectoryEntries(reader) {
+    return new Promise((resolve) => {
+        const entries = [];
+
+        function readEntries() {
+            reader.readEntries((results) => {
+                if (results.length === 0) {
+                    resolve(entries);
+                } else {
+                    entries.push(...results);
+                    readEntries(); // Continue reading
+                }
+            }, () => resolve(entries)); // Resolve with what we have on error
+        }
+
+        readEntries();
+    });
+}
+
+// Handle folder selection from input
+function handleFolderSelected(files) {
+    showFolderScanProgress();
+
+    // Filter and add files
+    const fileArray = Array.from(files);
+    let count = 0;
+
+    for (const file of fileArray) {
+        const exists = selectedFiles.some(f => f.name === file.name && f.size === file.size && f.webkitRelativePath === file.webkitRelativePath);
+        if (!exists) {
+            selectedFiles.push(file);
+            count++;
+            updateScanCount(selectedFiles.length);
+        }
+    }
+
+    hideFolderScanProgress();
+
+    // Reset validated files when new files added
+    validatedFiles = [];
+
+    renderFilesList();
+    updateContinueButton();
+
+    if (count > 0) {
+        showNotification(`Added ${count} files from folder`);
+    }
+}
+
+// Folder scan progress UI
+function showFolderScanProgress() {
+    document.getElementById('folder-scan-progress').style.display = 'flex';
+    document.getElementById('scan-count').textContent = '0';
+}
+
+function hideFolderScanProgress() {
+    document.getElementById('folder-scan-progress').style.display = 'none';
+}
+
+function updateScanCount(count) {
+    document.getElementById('scan-count').textContent = count;
 }
 
 function handleFilesSelected(files) {
