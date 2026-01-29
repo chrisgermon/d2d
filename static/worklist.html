@@ -141,8 +141,8 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <h1>🏥 Modality Worklist Query</h1>
-            <p class="subtitle">Query scheduled studies and select patient</p>
+            <h1>🏥 Worklist & Study Search</h1>
+            <p class="subtitle">Query scheduled or completed studies and select patient</p>
             <a href="/" style="color: #007bff;">← Back to D2D</a>
         </header>
 
@@ -153,10 +153,13 @@
                 <h2>Query Mode</h2>
                 <div class="query-mode-toggle">
                     <button class="query-mode-btn active" onclick="setQueryMode('all')" id="mode-all-btn">
-                        Query All Sites
+                        Scheduled Studies (All Sites)
                     </button>
                     <button class="query-mode-btn" onclick="setQueryMode('single')" id="mode-single-btn">
-                        Query Single Site
+                        Scheduled Studies (Single Site)
+                    </button>
+                    <button class="query-mode-btn" onclick="setQueryMode('completed')" id="mode-completed-btn">
+                        Completed Studies
                     </button>
                 </div>
                 <p id="mode-description" style="color: #666; font-size: 0.9em;">
@@ -536,9 +539,17 @@
                         <label for="search-accession">Accession Number</label>
                         <input type="text" id="search-accession" placeholder="Accession">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="scheduled-date-group">
                         <label for="search-date">Scheduled Date</label>
                         <input type="date" id="search-date">
+                    </div>
+                    <div class="form-group hidden" id="date-from-group">
+                        <label for="search-date-from">Study Date From</label>
+                        <input type="date" id="search-date-from">
+                    </div>
+                    <div class="form-group hidden" id="date-to-group">
+                        <label for="search-date-to">Study Date To</label>
+                        <input type="date" id="search-date-to">
                     </div>
                     <div class="form-group">
                         <label for="search-modality">Modality</label>
@@ -555,6 +566,9 @@
                         </select>
                     </div>
                 </div>
+                <div id="completed-study-note" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; color: #856404;">
+                    <strong>Note:</strong> Completed study search is limited to today and yesterday only for performance. Use patient name, ID, or accession to narrow results.
+                </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="executeQuery()" id="search-btn">
                         Search All Sites
@@ -567,7 +581,7 @@
 
             <!-- Results Table -->
             <section class="card">
-                <h2>Worklist Results</h2>
+                <h2 id="results-header">Search Results</h2>
                 <div id="results-count" class="results-count" style="display: none;"></div>
 
                 <!-- Client-side filter bar (shown after results load) -->
@@ -577,15 +591,15 @@
                     <select id="filter-modality" onchange="applyClientFilters()">
                         <option value="">All Modalities</option>
                     </select>
-                    <select id="filter-site" onchange="applyClientFilters()">
+                    <select id="filter-site" onchange="applyClientFilters()" id="filter-site-container">
                         <option value="">All Sites</option>
                     </select>
                     <button class="btn btn-secondary" onclick="clearClientFilters()" style="padding: 8px 12px;">Clear Filters</button>
                 </div>
 
                 <div id="results-container">
-                    <div class="no-results">
-                        Click "Search All Sites" to query scheduled studies from all worklist servers
+                    <div class="no-results" id="initial-message">
+                        Click "Scheduled Studies (All Sites)" to search for scheduled patients, or "Completed Studies" to find already performed studies
                     </div>
                 </div>
             </section>
@@ -679,22 +693,56 @@
             currentQueryMode = mode;
             const allBtn = document.getElementById('mode-all-btn');
             const singleBtn = document.getElementById('mode-single-btn');
+            const completedBtn = document.getElementById('mode-completed-btn');
             const singleConfig = document.getElementById('single-site-config');
             const searchBtn = document.getElementById('search-btn');
             const modeDesc = document.getElementById('mode-description');
+            const scheduledDateGroup = document.getElementById('scheduled-date-group');
+            const dateFromGroup = document.getElementById('date-from-group');
+            const dateToGroup = document.getElementById('date-to-group');
+            const completedNote = document.getElementById('completed-study-note');
+
+            // Reset all buttons
+            allBtn.classList.remove('active');
+            singleBtn.classList.remove('active');
+            completedBtn.classList.remove('active');
 
             if (mode === 'all') {
                 allBtn.classList.add('active');
-                singleBtn.classList.remove('active');
                 singleConfig.style.display = 'none';
                 searchBtn.textContent = 'Search All Sites';
                 modeDesc.textContent = 'Query all worklist AE Titles at once and filter results locally. Best for finding patients across all sites.';
-            } else {
+                // Show scheduled date, hide date range
+                scheduledDateGroup.classList.remove('hidden');
+                dateFromGroup.classList.add('hidden');
+                dateToGroup.classList.add('hidden');
+                completedNote.classList.add('hidden');
+            } else if (mode === 'single') {
                 singleBtn.classList.add('active');
-                allBtn.classList.remove('active');
                 singleConfig.style.display = 'block';
                 searchBtn.textContent = 'Search Single Site';
                 modeDesc.textContent = 'Query a specific site/modality worklist. Use this if you know which site the patient is scheduled at.';
+                // Show scheduled date, hide date range
+                scheduledDateGroup.classList.remove('hidden');
+                dateFromGroup.classList.add('hidden');
+                dateToGroup.classList.add('hidden');
+                completedNote.classList.add('hidden');
+            } else if (mode === 'completed') {
+                completedBtn.classList.add('active');
+                singleConfig.style.display = 'none';
+                searchBtn.textContent = 'Search Completed Studies';
+                modeDesc.textContent = 'Search PACS for studies that have already been performed (today and yesterday). Select a study to attach your document to it.';
+                // Hide scheduled date, show date range
+                scheduledDateGroup.classList.add('hidden');
+                dateFromGroup.classList.remove('hidden');
+                dateToGroup.classList.remove('hidden');
+                completedNote.classList.remove('hidden');
+                // Set default date range to yesterday and today
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                document.getElementById('search-date-from').valueAsDate = yesterday;
+                document.getElementById('search-date-to').valueAsDate = today;
             }
         }
 
@@ -733,8 +781,10 @@
         function executeQuery() {
             if (currentQueryMode === 'all') {
                 queryAllWorklists();
-            } else {
+            } else if (currentQueryMode === 'single') {
                 querySingleWorklist();
+            } else if (currentQueryMode === 'completed') {
+                queryCompletedStudies();
             }
         }
 
@@ -761,6 +811,7 @@
             const resultsContainer = document.getElementById('results-container');
             const resultsCount = document.getElementById('results-count');
             const filterBar = document.getElementById('client-filter-bar');
+            document.getElementById('results-header').textContent = 'Scheduled Studies';
 
             resultsContainer.innerHTML = `
                 <div class="loading">
@@ -826,6 +877,7 @@
             const resultsContainer = document.getElementById('results-container');
             const resultsCount = document.getElementById('results-count');
             const filterBar = document.getElementById('client-filter-bar');
+            document.getElementById('results-header').textContent = 'Scheduled Studies';
 
             resultsContainer.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Querying worklist...</p></div>';
             filterBar.style.display = 'none';
@@ -846,6 +898,78 @@
 
                     // Update results count
                     resultsCount.textContent = `Found ${result.count} scheduled patients from ${config.ae_title}`;
+                    resultsCount.style.display = 'block';
+
+                    // Populate filter dropdowns
+                    populateFilterDropdowns(allWorklistItems);
+
+                    // Show filter bar if we have results
+                    if (allWorklistItems.length > 0) {
+                        filterBar.style.display = 'flex';
+                    }
+
+                    displayWorklistResults(filteredWorklistItems);
+                } else {
+                    resultsContainer.innerHTML = `<div class="no-results">Error: ${result.detail}</div>`;
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="no-results">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Query completed studies from PACS
+        async function queryCompletedStudies() {
+            const patientName = document.getElementById('search-patient-name').value;
+            const patientId = document.getElementById('search-patient-id').value;
+            const accessionNumber = document.getElementById('search-accession').value;
+            const dateFrom = document.getElementById('search-date-from').value;
+            const dateTo = document.getElementById('search-date-to').value;
+            const modality = document.getElementById('search-modality').value;
+
+            const requestData = {
+                patient_name: patientName || null,
+                patient_id: patientId || null,
+                accession_number: accessionNumber || null,
+                study_date_from: dateFrom || null,
+                study_date_to: dateTo || null,
+                modality: modality || null,
+                // Use default PACS config
+                host: "10.17.1.21",
+                port: 104,
+                ae_title: "AURVCMOD1",
+                calling_ae: "D2DSERVER"
+            };
+
+            const resultsContainer = document.getElementById('results-container');
+            const resultsCount = document.getElementById('results-count');
+            const filterBar = document.getElementById('client-filter-bar');
+            document.getElementById('results-header').textContent = 'Completed Studies';
+
+            resultsContainer.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Searching for completed studies in PACS...</p>
+                    <p style="color: #666; font-size: 0.9em;">Searching studies from ${dateFrom || 'yesterday'} to ${dateTo || 'today'}</p>
+                </div>
+            `;
+            filterBar.style.display = 'none';
+            resultsCount.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/worklist/completed-studies', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    allWorklistItems = result.items || [];
+                    filteredWorklistItems = [...allWorklistItems];
+
+                    // Update results count
+                    resultsCount.textContent = `Found ${result.count} completed studies`;
                     resultsCount.style.display = 'block';
 
                     // Populate filter dropdowns
@@ -946,12 +1070,18 @@
             const resultsContainer = document.getElementById('results-container');
 
             if (!items || items.length === 0) {
-                resultsContainer.innerHTML = '<div class="no-results">No worklist items found</div>';
+                const noResultsMsg = currentQueryMode === 'completed'
+                    ? 'No completed studies found. Try different search criteria.'
+                    : 'No worklist items found';
+                resultsContainer.innerHTML = `<div class="no-results">${noResultsMsg}</div>`;
                 return;
             }
 
-            // Check if we're showing site AE (all sites mode)
-            const showSite = currentQueryMode === 'all' || items.some(item => getSiteAe(item));
+            // Check if we're showing site AE (all sites mode for worklist)
+            const showSite = currentQueryMode === 'all' || (currentQueryMode !== 'completed' && items.some(item => getSiteAe(item)));
+
+            // Different column header for completed vs scheduled
+            const dateColumnHeader = currentQueryMode === 'completed' ? 'Study Date' : 'Scheduled Date';
 
             let tableHTML = `
                 <table class="worklist-table">
@@ -963,7 +1093,7 @@
                             <th>Accession</th>
                             <th>Modality</th>
                             ${showSite ? '<th>Site</th>' : ''}
-                            <th>Scheduled Date</th>
+                            <th>${dateColumnHeader}</th>
                             <th>Procedure</th>
                         </tr>
                     </thead>
@@ -1020,24 +1150,31 @@
             const selectedInfo = document.getElementById('selected-info');
 
             const dob = formatDate(item.patient_birth_date) || 'N/A';
-            const schedDate = formatDate(item.scheduled_date);
-            const schedTime = formatTime(item.scheduled_time);
-            const scheduledDateTime = schedDate ? schedDate + (schedTime ? ' ' + schedTime : '') : 'N/A';
+            const schedDate = formatDate(item.scheduled_date || item.study_date);
+            const schedTime = formatTime(item.scheduled_time || item.study_time);
+            const dateTime = schedDate ? schedDate + (schedTime ? ' ' + schedTime : '') : 'N/A';
             const siteValue = getSiteAe(item);
             const siteInfo = siteValue ? `${getSiteFromAE(siteValue)} (${siteValue})` : 'N/A';
 
+            // Different labels for completed vs scheduled studies
+            const isCompleted = item.source === 'completed_study';
+            const dateLabel = isCompleted ? 'Study Date' : 'Scheduled';
+            const physicianLabel = isCompleted ? 'Referring Physician' : 'Physician';
+            const physician = item.referring_physician || item.scheduled_physician || 'N/A';
+
             selectedInfo.innerHTML = `
                 <h3>${item.patient_name}</h3>
+                ${isCompleted ? '<p style="color: #28a745; margin: 5px 0;"><strong>Completed Study</strong> - Select to attach your document to this study</p>' : ''}
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
                     <div><strong>Patient ID:</strong> ${item.patient_id || 'N/A'}</div>
                     <div><strong>Date of Birth:</strong> ${dob}</div>
                     <div><strong>Sex:</strong> ${item.patient_sex || 'N/A'}</div>
                     <div><strong>Accession:</strong> ${item.accession_number || 'N/A'}</div>
-                    <div><strong>Modality:</strong> ${item.modality || 'N/A'}</div>
-                    <div><strong>Site:</strong> ${siteInfo}</div>
-                    <div><strong>Scheduled:</strong> ${scheduledDateTime}</div>
-                    <div><strong>Physician:</strong> ${item.scheduled_physician || 'N/A'}</div>
-                    <div style="grid-column: 1 / -1;"><strong>Procedure:</strong> ${item.procedure_description || item.requested_procedure_description || 'N/A'}</div>
+                    <div><strong>Modality:</strong> ${item.modality || item.modalities_in_study || 'N/A'}</div>
+                    ${!isCompleted ? `<div><strong>Site:</strong> ${siteInfo}</div>` : ''}
+                    <div><strong>${dateLabel}:</strong> ${dateTime}</div>
+                    <div><strong>${physicianLabel}:</strong> ${physician}</div>
+                    <div style="grid-column: 1 / -1;"><strong>Description:</strong> ${item.procedure_description || item.study_description || item.requested_procedure_description || 'N/A'}</div>
                 </div>
             `;
 
@@ -1062,7 +1199,20 @@
             document.getElementById('search-patient-id').value = '';
             document.getElementById('search-accession').value = '';
             document.getElementById('search-date').value = '';
+            document.getElementById('search-date-from').value = '';
+            document.getElementById('search-date-to').value = '';
             document.getElementById('search-modality').value = '';
+
+            // Reset date defaults based on mode
+            if (currentQueryMode === 'completed') {
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                document.getElementById('search-date-from').valueAsDate = yesterday;
+                document.getElementById('search-date-to').valueAsDate = today;
+            } else {
+                document.getElementById('search-date').valueAsDate = new Date();
+            }
         }
 
         // Initialize on page load

@@ -34,6 +34,7 @@ from app.models import (
     WorklistConfig,
     WorklistQueryRequest,
     WorklistQueryAllRequest,
+    CompletedStudyQueryRequest,
     QRSourceConfig,
     QRStorageConfig,
     QRQueryRequest,
@@ -45,7 +46,7 @@ from app.models import (
 )
 from app.dicom_converter import DicomConverter
 from app.dicom_sender import DicomSender
-from app.dicom_worklist import WorklistQuery, query_all_worklists, ALL_WORKLIST_AE_TITLES
+from app.dicom_worklist import WorklistQuery, query_all_worklists, ALL_WORKLIST_AE_TITLES, CompletedStudyQuery, DEFAULT_PACS_CONFIG
 from app.dicom_logger import dicom_logger, DicomOperationType
 from app.dicom_qr import QueryRetrieve, get_storage_scp, list_retrieved_studies, get_batch_job_manager
 
@@ -533,6 +534,52 @@ async def get_worklist_ae_titles(api_key: str = Depends(verify_api_key)):
         "ae_titles": ALL_WORKLIST_AE_TITLES,
         "count": len(ALL_WORKLIST_AE_TITLES)
     }
+
+
+@app.post("/api/worklist/completed-studies")
+async def query_completed_studies(request: CompletedStudyQueryRequest, api_key: str = Depends(verify_api_key)):
+    """
+    Query PACS for completed studies (already performed, not scheduled).
+    Limited to today and previous day by default for performance.
+    Use this to find existing studies and attach documents to them.
+    """
+    try:
+        query = CompletedStudyQuery(
+            host=request.host,
+            port=request.port,
+            ae_title=request.ae_title,
+            calling_ae=request.calling_ae
+        )
+
+        success, items, message = query.query_completed_studies(
+            patient_name=request.patient_name,
+            patient_id=request.patient_id,
+            accession_number=request.accession_number,
+            study_date_from=request.study_date_from,
+            study_date_to=request.study_date_to,
+            modality=request.modality
+        )
+
+        if success:
+            return {
+                "success": True,
+                "items": items,
+                "count": len(items),
+                "message": message
+            }
+        else:
+            raise HTTPException(status_code=500, detail=message)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/worklist/completed-studies/config")
+async def get_completed_studies_config(api_key: str = Depends(verify_api_key)):
+    """Get default PACS configuration for completed study queries"""
+    return DEFAULT_PACS_CONFIG
 
 
 # Query/Retrieve page route

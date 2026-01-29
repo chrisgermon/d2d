@@ -1,8 +1,8 @@
 from pynetdicom import AE, evt
-from pynetdicom.sop_class import ModalityWorklistInformationFind
+from pynetdicom.sop_class import ModalityWorklistInformationFind, StudyRootQueryRetrieveInformationModelFind, Verification
 from pydicom.dataset import Dataset
 from typing import List, Optional, Dict
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
@@ -473,3 +473,236 @@ async def query_all_worklists(
     )
 
     return overall_success, unique_items, {"_summary": message, **status_dict}
+
+
+class CompletedStudyQuery:
+    """
+    Query PACS for completed studies using DICOM C-FIND at STUDY level.
+    Used to search for studies that have already been performed (not scheduled).
+    """
+
+    def __init__(self, host: str = "10.17.1.21", port: int = 104,
+                 ae_title: str = "AURVCMOD1", calling_ae: str = "D2DSERVER"):
+        self.host = host
+        self.port = port
+        self.ae_title = ae_title
+        self.calling_ae = calling_ae
+        self.ae = AE(ae_title=calling_ae)
+        self.ae.acse_timeout = 10
+        self.ae.dimse_timeout = 30
+        self.ae.network_timeout = 10
+        self.ae.add_requested_context(StudyRootQueryRetrieveInformationModelFind)
+        self.ae.add_requested_context(Verification)
+
+    def query_completed_studies(
+        self,
+        patient_name: Optional[str] = None,
+        patient_id: Optional[str] = None,
+        accession_number: Optional[str] = None,
+        study_date_from: Optional[date] = None,
+        study_date_to: Optional[date] = None,
+        modality: Optional[str] = None
+    ) -> tuple[bool, List[Dict], str]:
+        """
+        Query PACS for completed studies within a date range.
+
+        Args:
+            patient_name: Patient name (supports wildcards: * and ?)
+            patient_id: Patient ID/MRN
+            accession_number: Accession number
+            study_date_from: Start date for study search (inclusive)
+            study_date_to: End date for study search (inclusive)
+            modality: Modality code filter
+
+        Returns:
+            tuple: (success, list of study items, message)
+        """
+        try:
+            # Build query dataset
+            query_ds = Dataset()
+            query_ds.QueryRetrieveLevel = "STUDY"
+
+            # Patient Information
+            cleaned_patient_name = (patient_name or "").strip()
+            if cleaned_patient_name and cleaned_patient_name != "*":
+                query_ds.PatientName = cleaned_patient_name
+            else:
+                query_ds.PatientName = ''
+
+            if patient_id:
+                query_ds.PatientID = patient_id
+            else:
+                query_ds.PatientID = ''
+
+            query_ds.PatientBirthDate = ''
+            query_ds.PatientSex = ''
+
+            # Study Information
+            if accession_number:
+                query_ds.AccessionNumber = accession_number
+            else:
+                query_ds.AccessionNumber = ''
+
+            # Build date range query
+            if study_date_from and study_date_to:
+                date_range = f"{study_date_from.strftime('%Y%m%d')}-{study_date_to.strftime('%Y%m%d')}"
+                query_ds.StudyDate = date_range
+            elif study_date_from:
+                query_ds.StudyDate = f"{study_date_from.strftime('%Y%m%d')}-"
+            elif study_date_to:
+                query_ds.StudyDate = f"-{study_date_to.strftime('%Y%m%d')}"
+            else:
+                # Default to today and yesterday only
+                today = date.today()
+                yesterday = today - timedelta(days=1)
+                date_range = f"{yesterday.strftime('%Y%m%d')}-{today.strftime('%Y%m%d')}"
+                query_ds.StudyDate = date_range
+
+            query_ds.StudyTime = ''
+            query_ds.StudyDescription = ''
+            query_ds.StudyInstanceUID = ''
+            query_ds.ReferringPhysicianName = ''
+
+            # Modality filter
+            if modality:
+                query_ds.ModalitiesInStudy = modality
+            else:
+                query_ds.ModalitiesInStudy = ''
+
+            # Additional return keys
+            query_ds.NumberOfStudyRelatedSeries = ''
+            query_ds.NumberOfStudyRelatedInstances = ''
+
+            # Perform C-FIND query
+            assoc = self.ae.associate(
+                self.host,
+                self.port,
+                ae_title=self.ae_title
+            )
+
+            if not assoc.is_established:
+                message = f"Failed to establish association with {self.ae_title}"
+                return False, [], message
+
+            # Send C-FIND request
+            responses = assoc.send_c_find(query_ds, StudyRootQueryRetrieveInformationModelFind)
+
+            study_items = []
+            for (status, identifier) in responses:
+                if status and status.Status in [0xFF00, 0xFF01]:  # Pending
+                    if identifier:
+                        study_item = self._parse_study_item(identifier)
+                        if study_item:
+                            study_items.append(study_item)
+
+            assoc.release()
+
+            message = f"Found {len(study_items)} completed study(ies)"
+            return True, study_items, message
+
+        except Exception as e:
+            message = f"Completed study query failed: {str(e)}"
+            return False, [], message
+
+    def _parse_study_item(self, dataset: Dataset) -> Optional[Dict]:
+        """Parse DICOM C-FIND response into a dictionary compatible with worklist format"""
+        try:
+            item = {}
+
+            # Patient Information (same format as worklist)
+            item['patient_name'] = str(dataset.get('PatientName', ''))
+            item['patient_id'] = str(dataset.get('PatientID', ''))
+            item['patient_birth_date'] = self._parse_date(dataset.get('PatientBirthDate', ''))
+            item['patient_sex'] = str(dataset.get('PatientSex', ''))
+
+            # Study/Procedure Information
+            item['accession_number'] = str(dataset.get('AccessionNumber', ''))
+            item['study_description'] = str(dataset.get('StudyDescription', ''))
+            item['procedure_description'] = str(dataset.get('StudyDescription', ''))  # Alias for compatibility
+            item['study_instance_uid'] = str(dataset.get('StudyInstanceUID', ''))
+
+            # Study date/time (map to scheduled_date/time for UI compatibility)
+            item['study_date'] = self._parse_date(dataset.get('StudyDate', ''))
+            item['study_time'] = self._parse_time(dataset.get('StudyTime', ''))
+            item['scheduled_date'] = item['study_date']  # For UI compatibility
+            item['scheduled_time'] = item['study_time']  # For UI compatibility
+
+            # Modality
+            modalities = str(dataset.get('ModalitiesInStudy', ''))
+            item['modality'] = modalities.split('\\')[0] if modalities else ''  # Take first modality if multiple
+            item['modalities_in_study'] = modalities
+
+            # Referring physician
+            item['referring_physician'] = str(dataset.get('ReferringPhysicianName', ''))
+            item['scheduled_physician'] = item['referring_physician']  # For UI compatibility
+
+            # Study counts
+            item['num_series'] = str(dataset.get('NumberOfStudyRelatedSeries', ''))
+            item['num_instances'] = str(dataset.get('NumberOfStudyRelatedInstances', ''))
+
+            # Mark as completed study (not from worklist)
+            item['source'] = 'completed_study'
+            item['server_ae_title'] = self.ae_title
+            item['calling_ae'] = self.calling_ae
+
+            return item
+
+        except Exception as e:
+            print(f"Error parsing study item: {e}")
+            return None
+
+    def _parse_date(self, date_str) -> Optional[str]:
+        """Parse DICOM date (YYYYMMDD) to readable format"""
+        if not date_str:
+            return None
+        date_str = str(date_str)
+        if len(date_str) < 8:
+            return None
+        try:
+            return f"{date_str[0:4]}-{date_str[4:6]}-{date_str[6:8]}"
+        except:
+            return None
+
+    def _parse_time(self, time_str) -> Optional[str]:
+        """Parse DICOM time (HHMMSS) to readable format"""
+        if not time_str:
+            return None
+        time_str = str(time_str)
+        if len(time_str) < 6:
+            return None
+        try:
+            return f"{time_str[0:2]}:{time_str[2:4]}:{time_str[4:6]}"
+        except:
+            return None
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test connection to PACS server"""
+        try:
+            assoc = self.ae.associate(
+                self.host,
+                self.port,
+                ae_title=self.ae_title
+            )
+
+            if assoc.is_established:
+                status = assoc.send_c_echo()
+                assoc.release()
+
+                if status:
+                    return True, f"Successfully connected to PACS {self.ae_title}"
+                else:
+                    return False, "C-ECHO failed"
+            else:
+                return False, f"Association rejected by {self.ae_title}"
+
+        except Exception as e:
+            return False, f"Connection failed: {str(e)}"
+
+
+# Default PACS configuration for completed study queries
+DEFAULT_PACS_CONFIG = {
+    "host": "10.17.1.21",
+    "port": 104,
+    "ae_title": "AURVCMOD1",
+    "calling_ae": "D2DSERVER"
+}
