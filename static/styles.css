@@ -789,6 +789,17 @@ body {
     border-color: var(--text-muted);
 }
 
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: 1px solid #28a745;
+}
+
+.btn-success:hover {
+    background: #218838;
+    border-color: #1e7e34;
+}
+
 .btn-text {
     background: transparent;
     color: var(--primary-color);

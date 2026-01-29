@@ -312,6 +312,9 @@ function setupPatientSearch() {
 
     // Create patient button
     document.getElementById('create-patient-btn').addEventListener('click', createPatient);
+
+    // Search completed studies button
+    document.getElementById('search-completed-btn').addEventListener('click', openCompletedStudiesModal);
 }
 
 // Create Patient Modal
@@ -324,10 +327,144 @@ function closeCreatePatientModal() {
     document.getElementById('create-patient-form').reset();
 }
 
+// Completed Studies Modal
+function openCompletedStudiesModal() {
+    document.getElementById('completed-studies-modal').classList.add('active');
+    document.getElementById('completed-studies-results').innerHTML = '<p style="color: #999; text-align: center;">Enter search criteria and click Search</p>';
+}
+
+function closeCompletedStudiesModal() {
+    document.getElementById('completed-studies-modal').classList.remove('active');
+    document.getElementById('completed-studies-form').reset();
+    document.getElementById('completed-studies-results').innerHTML = '<p style="color: #999; text-align: center;">Enter search criteria and click Search</p>';
+}
+
+async function searchCompletedStudies(event) {
+    event.preventDefault();
+
+    const resultsDiv = document.getElementById('completed-studies-results');
+    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="spinner-small"></div><p>Searching PACS for completed studies...</p></div>';
+
+    const requestData = {
+        patient_name: document.getElementById('cs-patient-name').value || null,
+        patient_id: document.getElementById('cs-patient-id').value || null,
+        accession_number: document.getElementById('cs-accession').value || null,
+        modality: document.getElementById('cs-modality').value || null,
+        // Date range: yesterday to today
+        study_date_from: getYesterday(),
+        study_date_to: getToday()
+    };
+
+    try {
+        const response = await fetch('/api/worklist/completed-studies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.items && result.items.length > 0) {
+            displayCompletedStudiesResults(result.items);
+        } else if (response.ok) {
+            resultsDiv.innerHTML = '<p style="color: #999; text-align: center;">No completed studies found. Try different search criteria.</p>';
+        } else {
+            resultsDiv.innerHTML = `<p style="color: #dc3545; text-align: center;">Error: ${result.detail || 'Search failed'}</p>`;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<p style="color: #dc3545; text-align: center;">Error: ${error.message}</p>`;
+    }
+}
+
+function getToday() {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+}
+
+function getYesterday() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+}
+
+function displayCompletedStudiesResults(items) {
+    const resultsDiv = document.getElementById('completed-studies-results');
+
+    let html = `<div style="max-height: 300px; overflow-y: auto;"><table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+        <thead style="position: sticky; top: 0; background: white;">
+            <tr style="border-bottom: 2px solid #ddd;">
+                <th style="text-align: left; padding: 8px;">Patient Name</th>
+                <th style="text-align: left; padding: 8px;">ID</th>
+                <th style="text-align: left; padding: 8px;">Accession</th>
+                <th style="text-align: left; padding: 8px;">Study Date</th>
+                <th style="text-align: left; padding: 8px;">Description</th>
+                <th style="padding: 8px;"></th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    items.forEach((item, index) => {
+        const patientName = formatDicomNameForDisplay(item.patient_name || '');
+        const studyDate = item.study_date || item.scheduled_date || '';
+        html += `<tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 8px;">${patientName}</td>
+            <td style="padding: 8px;">${item.patient_id || ''}</td>
+            <td style="padding: 8px;">${item.accession_number || ''}</td>
+            <td style="padding: 8px;">${studyDate}</td>
+            <td style="padding: 8px;">${item.study_description || item.procedure_description || ''}</td>
+            <td style="padding: 8px;"><button class="btn btn-success btn-small" onclick="selectCompletedStudy(${index})">Select</button></td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    resultsDiv.innerHTML = html;
+
+    // Store results for selection
+    window.completedStudiesResults = items;
+}
+
+function selectCompletedStudy(index) {
+    const item = window.completedStudiesResults[index];
+
+    selectedPatient = {
+        patient_name: item.patient_name,
+        patient_id: item.patient_id,
+        patient_birth_date: item.patient_birth_date || null,
+        patient_sex: item.patient_sex || null,
+        accession_number: item.accession_number || null,
+        procedure_description: item.study_description || item.procedure_description || 'Document Conversion',
+        modality: item.modality || 'OT',
+        referring_physician: item.referring_physician || item.scheduled_physician || null,
+        study_instance_uid: item.study_instance_uid || null,
+        source: 'completed_study'
+    };
+
+    // Update selected patient display
+    document.getElementById('selected-patient-name').textContent = formatDicomNameForDisplay(selectedPatient.patient_name);
+    document.getElementById('selected-patient-id').textContent = `ID: ${selectedPatient.patient_id}`;
+    document.getElementById('selected-patient-dob').textContent = `DOB: ${formatDateToAustralian(selectedPatient.patient_birth_date) || 'N/A'}`;
+    document.getElementById('selected-patient-sex').textContent = selectedPatient.patient_sex || '';
+    document.getElementById('selected-patient-study').textContent = selectedPatient.procedure_description;
+
+    // Hide list, show selected
+    document.getElementById('patient-list').style.display = 'none';
+    document.getElementById('patient-loading').style.display = 'none';
+    document.getElementById('no-patients').style.display = 'none';
+    document.querySelector('.patient-toolbar').style.display = 'none';
+    document.getElementById('selected-patient').style.display = 'block';
+
+    closeCompletedStudiesModal();
+    goToStep(2);
+    document.getElementById('upload-section').scrollIntoView({ behavior: 'smooth' });
+}
+
 // Setup buttons
 function setupButtons() {
     // Close create modal
     document.getElementById('close-create-modal').addEventListener('click', closeCreatePatientModal);
+
+    // Close completed studies modal
+    document.getElementById('close-completed-modal').addEventListener('click', closeCompletedStudiesModal);
 
     // Create patient form submit
     document.getElementById('create-patient-form').addEventListener('submit', (e) => {
