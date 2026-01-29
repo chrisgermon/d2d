@@ -71,6 +71,20 @@ class WorklistQueryAllRequest(BaseModel):
     calling_ae: str = "D2DSERVER"
 
 
+class CompletedStudyQueryRequest(BaseModel):
+    """Request to query PACS for completed studies"""
+    patient_name: Optional[str] = None
+    patient_id: Optional[str] = None
+    accession_number: Optional[str] = None
+    study_date_from: Optional[date] = None
+    study_date_to: Optional[date] = None
+    modality: Optional[str] = None
+    host: str = "10.17.1.21"
+    port: int = 104
+    ae_title: str = "AURVCMOD1"
+    calling_ae: str = "D2DSERVER"
+
+
 # Query/Retrieve Models
 class QRSourceConfig(BaseModel):
     """PACS source configuration for Query/Retrieve"""
