@@ -134,6 +134,13 @@
                             </svg>
                             Create Patient/Request
                         </button>
+                        <button class="btn btn-success" id="search-completed-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            Search Completed Studies
+                        </button>
                     </div>
                 </div>
 
@@ -412,6 +419,55 @@
                         <button type="submit" class="btn btn-primary">Use This Patient</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Completed Studies Modal -->
+    <div id="completed-studies-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Search Completed Studies</h2>
+                <button class="modal-close" id="close-completed-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: #666; margin-bottom: 15px;">Search for studies completed today or yesterday. Select a study to attach your document to it.</p>
+                <form id="completed-studies-form" onsubmit="searchCompletedStudies(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="cs-patient-name">Patient Name</label>
+                            <input type="text" id="cs-patient-name" placeholder="Last^First or partial name">
+                        </div>
+                        <div class="form-group">
+                            <label for="cs-patient-id">Patient ID</label>
+                            <input type="text" id="cs-patient-id" placeholder="MRN">
+                        </div>
+                        <div class="form-group">
+                            <label for="cs-accession">Accession Number</label>
+                            <input type="text" id="cs-accession" placeholder="Accession">
+                        </div>
+                        <div class="form-group">
+                            <label for="cs-modality">Modality</label>
+                            <select id="cs-modality">
+                                <option value="">All</option>
+                                <option value="US">US - Ultrasound</option>
+                                <option value="CT">CT - Computed Tomography</option>
+                                <option value="MR">MR - Magnetic Resonance</option>
+                                <option value="XA">XA - X-Ray Angiography</option>
+                                <option value="CR">CR - Computed Radiography</option>
+                                <option value="DX">DX - Digital Radiography</option>
+                                <option value="MG">MG - Mammography</option>
+                                <option value="OT">OT - Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="margin-bottom: 15px;">
+                        <button type="submit" class="btn btn-success">Search</button>
+                    </div>
+                </form>
+                <div id="completed-studies-results">
+                    <p style="color: #999; text-align: center;">Enter search criteria and click Search</p>
+                </div>
             </div>
         </div>
     </div>
